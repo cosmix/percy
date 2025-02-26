@@ -2,7 +2,6 @@ import { Anthropic } from "@anthropic-ai/sdk"
 import axios from "axios"
 import fs from "fs/promises"
 import os from "os"
-import crypto from "crypto"
 import { execa } from "execa"
 import pWaitFor from "p-wait-for"
 import * as path from "path"
@@ -14,8 +13,7 @@ import { selectImages } from "../../integrations/misc/process-images"
 import { getTheme } from "../../integrations/theme/getTheme"
 import WorkspaceTracker from "../../integrations/workspace/WorkspaceTracker"
 import { McpHub } from "../../services/mcp/McpHub"
-import { McpDownloadResponse, McpMarketplaceCatalog, McpMarketplaceItem, McpServer } from "../../shared/mcp"
-import { FirebaseAuthManager, UserInfo } from "../../services/auth/FirebaseAuthManager"
+import { McpDownloadResponse, McpMarketplaceCatalog, McpServer } from "../../shared/mcp"
 import { ApiConfiguration, ApiProvider, ModelInfo } from "../../shared/api"
 import { findLast } from "../../shared/array"
 import { ExtensionMessage, ExtensionState, Platform } from "../../shared/ExtensionMessage"
@@ -29,10 +27,8 @@ import { getUri } from "./getUri"
 import { AutoApprovalSettings, DEFAULT_AUTO_APPROVAL_SETTINGS } from "../../shared/AutoApprovalSettings"
 import { BrowserSettings, DEFAULT_BROWSER_SETTINGS } from "../../shared/BrowserSettings"
 import { ChatSettings, DEFAULT_CHAT_SETTINGS } from "../../shared/ChatSettings"
-import { DIFF_VIEW_URI_SCHEME } from "../../integrations/editor/DiffViewProvider"
 import { searchCommits } from "../../utils/git"
 import { ChatContent } from "../../shared/ChatContent"
-import { getShell } from "../../utils/shell"
 
 /*
 https://github.com/microsoft/vscode-webview-ui-toolkit-samples/blob/main/default/weather-webview/src/providers/WeatherViewProvider.ts
@@ -55,8 +51,6 @@ type SecretKey =
 	| "qwenApiKey"
 	| "mistralApiKey"
 	| "liteLlmApiKey"
-	| "authToken"
-	| "authNonce"
 type GlobalStateKey =
 	| "apiProvider"
 	| "apiModelId"
@@ -112,10 +106,9 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 	private static activeInstances: Set<PercyProvider> = new Set()
 	private disposables: vscode.Disposable[] = []
 	private view?: vscode.WebviewView | vscode.WebviewPanel
-	private cline?: Percy
+	private percy?: Percy
 	workspaceTracker?: WorkspaceTracker
 	mcpHub?: McpHub
-	private authManager: FirebaseAuthManager
 	private latestAnnouncementId = "feb-19-2025" // update to some unique identifier when we add a new announcement
 
 	constructor(
@@ -126,7 +119,6 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 		PercyProvider.activeInstances.add(this)
 		this.workspaceTracker = new WorkspaceTracker(this)
 		this.mcpHub = new McpHub(this)
-		this.authManager = new FirebaseAuthManager(this)
 	}
 
 	/*
@@ -152,27 +144,8 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 		this.workspaceTracker = undefined
 		this.mcpHub?.dispose()
 		this.mcpHub = undefined
-		this.authManager.dispose()
 		this.outputChannel.appendLine("Disposed all disposables")
 		PercyProvider.activeInstances.delete(this)
-	}
-
-	// Auth methods
-	async handleSignOut() {
-		try {
-			await this.authManager.signOut()
-			vscode.window.showInformationMessage("Successfully logged out of Percy")
-		} catch (error) {
-			vscode.window.showErrorMessage("Logout failed")
-		}
-	}
-
-	async setAuthToken(token?: string) {
-		await this.storeSecret("authToken", token)
-	}
-
-	async setUserInfo(info?: { displayName: string | null; email: string | null; photoURL: string | null }) {
-		await this.updateGlobalState("userInfo", info)
 	}
 
 	public static getVisibleInstance(): PercyProvider | undefined {
@@ -273,7 +246,7 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 		await this.clearTask() // ensures that an existing task doesn't exist before starting a new one, although this shouldn't be possible since user must clear task before starting a new one
 		const { apiConfiguration, customInstructions, autoApprovalSettings, browserSettings, chatSettings } =
 			await this.getState()
-		this.cline = new Percy(
+		this.percy = new Percy(
 			this,
 			apiConfiguration,
 			autoApprovalSettings,
@@ -289,7 +262,7 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 		await this.clearTask()
 		const { apiConfiguration, customInstructions, autoApprovalSettings, browserSettings, chatSettings } =
 			await this.getState()
-		this.cline = new Percy(
+		this.percy = new Percy(
 			this,
 			apiConfiguration,
 			autoApprovalSettings,
@@ -534,8 +507,8 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 							await this.updateGlobalState("qwenApiLine", qwenApiLine)
 							await this.updateGlobalState("requestyModelId", requestyModelId)
 							await this.updateGlobalState("togetherModelId", togetherModelId)
-							if (this.cline) {
-								this.cline.api = buildApiHandler(message.apiConfiguration)
+							if (this.percy) {
+								this.percy.api = buildApiHandler(message.apiConfiguration)
 							}
 						}
 						await this.postStateToWebview()
@@ -546,8 +519,8 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 					case "autoApprovalSettings":
 						if (message.autoApprovalSettings) {
 							await this.updateGlobalState("autoApprovalSettings", message.autoApprovalSettings)
-							if (this.cline) {
-								this.cline.autoApprovalSettings = message.autoApprovalSettings
+							if (this.percy) {
+								this.percy.autoApprovalSettings = message.autoApprovalSettings
 							}
 							await this.postStateToWebview()
 						}
@@ -555,8 +528,8 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 					case "browserSettings":
 						if (message.browserSettings) {
 							await this.updateGlobalState("browserSettings", message.browserSettings)
-							if (this.cline) {
-								this.cline.updateBrowserSettings(message.browserSettings)
+							if (this.percy) {
+								this.percy.updateBrowserSettings(message.browserSettings)
 							}
 							await this.postStateToWebview()
 						}
@@ -572,7 +545,7 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 					// 	}
 					// 	break
 					case "askResponse":
-						this.cline?.handleWebviewAskResponse(message.askResponse!, message.text, message.images)
+						this.percy?.handleWebviewAskResponse(message.askResponse!, message.text, message.images)
 						break
 					case "clearTask":
 						// newTask will start a new task with a given task text, while clear task resets the current session and allows for a new task to be started
@@ -591,7 +564,7 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 						})
 						break
 					case "exportCurrentTask":
-						const currentTaskId = this.cline?.taskId
+						const currentTaskId = this.percy?.taskId
 						if (currentTaskId) {
 							this.exportTaskWithId(currentTaskId)
 						}
@@ -648,7 +621,7 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 						break
 					case "checkpointDiff": {
 						if (message.number) {
-							await this.cline?.presentMultifileDiff(message.number, false)
+							await this.percy?.presentMultifileDiff(message.number, false)
 						}
 						break
 					}
@@ -657,19 +630,19 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 						// cancel task waits for any open editor to be reverted and starts a new cline instance
 						if (message.number) {
 							// wait for messages to be loaded
-							await pWaitFor(() => this.cline?.isInitialized === true, {
+							await pWaitFor(() => this.percy?.isInitialized === true, {
 								timeout: 3_000,
 							}).catch(() => {
 								console.error("Failed to init new cline instance")
 							})
 							// NOTE: cancelTask awaits abortTask, which awaits diffViewProvider.revertChanges, which reverts any edited files, allowing us to reset to a checkpoint rather than running into a state where the revertChanges function is called alongside or after the checkpoint reset
-							await this.cline?.restoreCheckpoint(message.number, message.text! as PercyCheckpointRestore)
+							await this.percy?.restoreCheckpoint(message.number, message.text! as PercyCheckpointRestore)
 						}
 						break
 					}
 					case "taskCompletionViewChanges": {
 						if (message.number) {
-							await this.cline?.presentMultifileDiff(message.number, true)
+							await this.percy?.presentMultifileDiff(message.number, true)
 						}
 						break
 					}
@@ -949,9 +922,9 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 			}
 
 			// Update Percy instance if it exists
-			if (this.cline) {
+			if (this.percy) {
 				const { apiConfiguration: updatedApiConfiguration } = await this.getState()
-				this.cline.api = buildApiHandler(updatedApiConfiguration)
+				this.percy.api = buildApiHandler(updatedApiConfiguration)
 			}
 		}
 
@@ -965,10 +938,10 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 		await this.updateGlobalState("chatSettings", finalChatSettings)
 		await this.postStateToWebview()
 
-		if (this.cline) {
-			this.cline.updateChatSettings(finalChatSettings)
-			if (this.cline.isAwaitingPlanResponse && didSwitchToActMode) {
-				this.cline.didRespondToPlanAskBySwitchingMode = true
+		if (this.percy) {
+			this.percy.updateChatSettings(finalChatSettings)
+			if (this.percy.isAwaitingPlanResponse && didSwitchToActMode) {
+				this.percy.didRespondToPlanAskBySwitchingMode = true
 				// This is necessary for the webview to update accordingly, but Percy instance will not send text back as feedback message
 				await this.postMessageToWebview({
 					type: "invoke",
@@ -983,28 +956,28 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 	}
 
 	async cancelTask() {
-		if (this.cline) {
-			const { historyItem } = await this.getTaskWithId(this.cline.taskId)
+		if (this.percy) {
+			const { historyItem } = await this.getTaskWithId(this.percy.taskId)
 			try {
-				await this.cline.abortTask()
+				await this.percy.abortTask()
 			} catch (error) {
 				console.error("Failed to abort task", error)
 			}
 			await pWaitFor(
 				() =>
-					this.cline === undefined ||
-					this.cline.isStreaming === false ||
-					this.cline.didFinishAbortingStream ||
-					this.cline.isWaitingForFirstChunk, // if only first chunk is processed, then there's no need to wait for graceful abort (closes edits, browser, etc)
+					this.percy === undefined ||
+					this.percy.isStreaming === false ||
+					this.percy.didFinishAbortingStream ||
+					this.percy.isWaitingForFirstChunk, // if only first chunk is processed, then there's no need to wait for graceful abort (closes edits, browser, etc)
 				{
 					timeout: 3_000,
 				},
 			).catch(() => {
 				console.error("Failed to abort task")
 			})
-			if (this.cline) {
+			if (this.percy) {
 				// 'abandoned' will prevent this cline instance from affecting future cline instance gui. this may happen if its hanging on a streaming request
-				this.cline.abandoned = true
+				this.percy.abandoned = true
 			}
 			await this.initPercyWithHistoryItem(historyItem) // clears task again, so we need to abortTask manually above
 			// await this.postStateToWebview() // new Percy instance will post state when it's ready. having this here sent an empty messages array to webview leading to virtuoso having to reload the entire list
@@ -1014,8 +987,8 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 	async updateCustomInstructions(instructions?: string) {
 		// User may be clearing the field
 		await this.updateGlobalState("customInstructions", instructions || undefined)
-		if (this.cline) {
-			this.cline.customInstructions = instructions || undefined
+		if (this.percy) {
+			this.percy.customInstructions = instructions || undefined
 		}
 		await this.postStateToWebview()
 	}
@@ -1105,32 +1078,6 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 			return models
 		} catch (error) {
 			return []
-		}
-	}
-
-	// Auth
-
-	public async validateAuthState(state: string | null): Promise<boolean> {
-		const storedNonce = await this.getSecret("authNonce")
-		if (!state || state !== storedNonce) {
-			return false
-		}
-		await this.storeSecret("authNonce", undefined) // Clear after use
-		return true
-	}
-
-	async handleAuthCallback(token: string) {
-		try {
-			// First sign in with Firebase to trigger auth state change
-			await this.authManager.signInWithCustomToken(token)
-
-			// Then store the token securely
-			await this.storeSecret("authToken", token)
-			await this.postStateToWebview()
-			vscode.window.showInformationMessage("Successfully logged in to Percy")
-		} catch (error) {
-			console.error("Failed to handle auth callback:", error)
-			vscode.window.showErrorMessage("Failed to log in to Percy")
 		}
 	}
 
@@ -1348,8 +1295,8 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 		await this.updateGlobalState("apiProvider", openrouter)
 		await this.storeSecret("openRouterApiKey", apiKey)
 		await this.postStateToWebview()
-		if (this.cline) {
-			this.cline.api = buildApiHandler({
+		if (this.percy) {
+			this.percy.api = buildApiHandler({
 				apiProvider: openrouter,
 				openRouterApiKey: apiKey,
 			})
@@ -1528,7 +1475,7 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 	}
 
 	async showTaskWithId(id: string) {
-		if (id !== this.cline?.taskId) {
+		if (id !== this.percy?.taskId) {
 			// non-current task
 			const { historyItem } = await this.getTaskWithId(id)
 			await this.initPercyWithHistoryItem(historyItem) // clears existing task
@@ -1545,7 +1492,7 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 	}
 
 	async deleteTaskWithId(id: string) {
-		if (id === this.cline?.taskId) {
+		if (id === this.percy?.taskId) {
 			await this.clearTask()
 		}
 
@@ -1605,8 +1552,6 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 			autoApprovalSettings,
 			browserSettings,
 			chatSettings,
-			userInfo,
-			authToken,
 			mcpMarketplaceEnabled,
 			reasoningBlocksExpanded,
 		} = await this.getState()
@@ -1616,25 +1561,23 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 			apiConfiguration,
 			customInstructions,
 			uriScheme: vscode.env.uriScheme,
-			currentTaskItem: this.cline?.taskId ? (taskHistory || []).find((item) => item.id === this.cline?.taskId) : undefined,
-			checkpointTrackerErrorMessage: this.cline?.checkpointTrackerErrorMessage,
-			clineMessages: this.cline?.clineMessages || [],
+			currentTaskItem: this.percy?.taskId ? (taskHistory || []).find((item) => item.id === this.percy?.taskId) : undefined,
+			checkpointTrackerErrorMessage: this.percy?.checkpointTrackerErrorMessage,
+			clineMessages: this.percy?.clineMessages || [],
 			taskHistory: (taskHistory || []).filter((item) => item.ts && item.task).sort((a, b) => b.ts - a.ts),
 			shouldShowAnnouncement: lastShownAnnouncementId !== this.latestAnnouncementId,
 			platform: process.platform as Platform,
 			autoApprovalSettings,
 			browserSettings,
 			chatSettings,
-			isLoggedIn: !!authToken,
-			userInfo,
 			mcpMarketplaceEnabled,
 			reasoningBlocksExpanded,
 		}
 	}
 
 	async clearTask() {
-		this.cline?.abortTask()
-		this.cline = undefined // removes reference to it, so once promises end it will be garbage collected
+		this.percy?.abortTask()
+		this.percy = undefined // removes reference to it, so once promises end it will be garbage collected
 	}
 
 	// Caching mechanism to keep track of webview messages + API conversation history per provider instance
@@ -1730,8 +1673,6 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 			vsCodeLmModelSelector,
 			liteLlmBaseUrl,
 			liteLlmModelId,
-			userInfo,
-			authToken,
 			previousModeApiProvider,
 			previousModeModelId,
 			previousModeModelInfo,
@@ -1783,8 +1724,6 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 			this.getGlobalState("vsCodeLmModelSelector") as Promise<vscode.LanguageModelChatSelector | undefined>,
 			this.getGlobalState("liteLlmBaseUrl") as Promise<string | undefined>,
 			this.getGlobalState("liteLlmModelId") as Promise<string | undefined>,
-			this.getGlobalState("userInfo") as Promise<UserInfo | undefined>,
-			this.getSecret("authToken") as Promise<string | undefined>,
 			this.getGlobalState("previousModeApiProvider") as Promise<ApiProvider | undefined>,
 			this.getGlobalState("previousModeModelId") as Promise<string | undefined>,
 			this.getGlobalState("previousModeModelInfo") as Promise<ModelInfo | undefined>,
@@ -1863,8 +1802,6 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 			autoApprovalSettings: autoApprovalSettings || DEFAULT_AUTO_APPROVAL_SETTINGS, // default value can be 0 or empty string
 			browserSettings: browserSettings || DEFAULT_BROWSER_SETTINGS,
 			chatSettings: chatSettings || DEFAULT_CHAT_SETTINGS,
-			userInfo,
-			authToken,
 			previousModeApiProvider,
 			previousModeModelId,
 			previousModeModelInfo,
@@ -1951,14 +1888,13 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 			"qwenApiKey",
 			"mistralApiKey",
 			"liteLlmApiKey",
-			"authToken",
 		]
 		for (const key of secretKeys) {
 			await this.storeSecret(key, undefined)
 		}
-		if (this.cline) {
-			this.cline.abortTask()
-			this.cline = undefined
+		if (this.percy) {
+			this.percy.abortTask()
+			this.percy = undefined
 		}
 		vscode.window.showInformationMessage("State reset")
 		await this.postStateToWebview()
