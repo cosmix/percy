@@ -1,3 +1,5 @@
+<img src="/assets/icons/icon.png" style="width: 200px"/>
+
 # Percy
 
 Percy is a fork of [Cline](https://www.github.com/cline/cline). It adds a number of minor features and improvements that have long been discussed in Cline's Discord or mentioned on the Cline repo, but never got prioritised. It also does away with all the "commercial features" the Cline project has been recently adding, e.g. accounts, telemetry, etc.
