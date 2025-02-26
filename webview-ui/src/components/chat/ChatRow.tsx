@@ -4,17 +4,18 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "
 import { useEvent, useSize } from "react-use"
 import styled, { keyframes } from "styled-components"
 import {
+	COMPLETION_RESULT_CHANGES_FLAG,
+	ExtensionMessage,
 	PercyApiReqInfo,
 	PercyAskUseMcpServer,
 	PercyMessage,
 	PercySayTool,
-	COMPLETION_RESULT_CHANGES_FLAG,
-	ExtensionMessage,
 } from "../../../../src/shared/ExtensionMessage"
 import { COMMAND_OUTPUT_STRING, COMMAND_REQ_APP_STRING } from "../../../../src/shared/combineCommandSequences"
 import { useExtensionState } from "../../context/ExtensionStateContext"
 import { findMatchingResourceOrTemplate, getMcpServerDisplayName } from "../../utils/mcp"
 import { vscode } from "../../utils/vscode"
+import { CheckmarkControl } from "../common/CheckmarkControl"
 import { CheckpointControls, CheckpointOverlay } from "../common/CheckpointControls"
 import CodeAccordian, { cleanPathPrefix } from "../common/CodeAccordian"
 import CodeBlock, { CODE_BLOCK_BG_COLOR } from "../common/CodeBlock"
@@ -24,7 +25,6 @@ import Thumbnails from "../common/Thumbnails"
 import McpResourceRow from "../mcp/McpResourceRow"
 import McpToolRow from "../mcp/McpToolRow"
 import { highlightMentions } from "./TaskHeader"
-import { CheckmarkControl } from "../common/CheckmarkControl"
 
 const throb = keyframes`
   0%, 100% { opacity: 0.3; }
@@ -374,7 +374,16 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 			default:
 				return [null, null]
 		}
-	}, [type, cost, apiRequestFailedMessage, isCommandExecuting, apiReqCancelReason, isMcpServerResponding, message.text])
+	}, [
+		type,
+		isCommandExecuting,
+		message.text,
+		isMcpServerResponding,
+		mcpMarketplaceCatalog,
+		apiReqCancelReason,
+		cost,
+		apiRequestFailedMessage,
+	])
 
 	const headerStyle: React.CSSProperties = {
 		display: "flex",

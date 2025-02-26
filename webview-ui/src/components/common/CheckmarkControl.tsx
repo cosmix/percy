@@ -1,13 +1,12 @@
-import { useCallback, useRef, useState, useEffect } from "react"
-import { useClickAway, useEvent } from "react-use"
+import { flip, offset, shift, useFloating } from "@floating-ui/react"
+import { VSCodeButton } from "@vscode/webview-ui-toolkit/react"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
+import { useEvent } from "react-use"
 import styled from "styled-components"
 import { ExtensionMessage } from "../../../../src/shared/ExtensionMessage"
 import { vscode } from "../../utils/vscode"
 import { CODE_BLOCK_BG_COLOR } from "./CodeBlock"
-import { PercyCheckpointRestore } from "../../../../src/shared/WebviewMessage"
-import { VSCodeButton } from "@vscode/webview-ui-toolkit/react"
-import { createPortal } from "react-dom"
-import { useFloating, offset, flip, shift } from "@floating-ui/react"
 
 interface CheckmarkControlProps {
 	messageTs?: number
