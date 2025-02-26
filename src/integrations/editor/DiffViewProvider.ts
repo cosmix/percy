@@ -23,10 +23,19 @@ export class DiffViewProvider {
 	private activeLineController?: DecorationController
 	private streamedLines: string[] = []
 	private preDiagnostics: [vscode.Uri, vscode.Diagnostic[]][] = []
+	private bufferedContent: string | undefined
+	private _isStreamingMode: boolean = false
+
+	// Public getter for streaming mode state
+	get isStreamingMode(): boolean {
+		return this._isStreamingMode
+	}
 
 	constructor(private cwd: string) {}
 
-	async open(relPath: string): Promise<void> {
+	async open(relPath: string, streamingMode: boolean = false): Promise<void> {
+		this._isStreamingMode = streamingMode
+		this.bufferedContent = undefined
 		this.relPath = relPath
 		const fileExists = this.editType === "modify"
 		const absolutePath = path.resolve(this.cwd, relPath)
@@ -79,6 +88,17 @@ export class DiffViewProvider {
 		if (!this.relPath || !this.activeLineController || !this.fadedOverlayController) {
 			throw new Error("Required values not set")
 		}
+
+		if (this.isStreamingMode && !isFinal) {
+			// In streaming mode, just buffer the content and update visual display
+			this.bufferedContent = accumulatedContent
+
+			// Update visual display without actual diffing
+			await this.updateVisualPreview(accumulatedContent)
+			return
+		}
+
+		// For final update or non-streaming mode, perform the actual diff
 		this.newContent = accumulatedContent
 		const accumulatedLines = accumulatedContent.split("\n")
 		if (!isFinal) {
@@ -339,6 +359,32 @@ export class DiffViewProvider {
 		}
 	}
 
+	private async updateVisualPreview(accumulatedContent: string) {
+		const accumulatedLines = accumulatedContent.split("\n")
+		const diffLines = accumulatedLines.slice(this.streamedLines.length)
+
+		const diffEditor = this.activeDiffEditor
+		const document = diffEditor?.document
+		if (!diffEditor || !document) {
+			throw new Error("User closed text editor, unable to edit file...")
+		}
+
+		// Place cursor at the beginning
+		const beginningOfDocument = new vscode.Position(0, 0)
+		diffEditor.selection = new vscode.Selection(beginningOfDocument, beginningOfDocument)
+
+		// Update decorations only without modifying document content
+		for (let i = 0; i < diffLines.length; i++) {
+			const currentLine = this.streamedLines.length + i
+			this.activeLineController!.setActiveLine(currentLine)
+			this.fadedOverlayController!.updateOverlayAfterLine(currentLine, document.lineCount)
+			this.scrollEditorToLine(currentLine)
+		}
+
+		// Update the tracked streamed lines
+		this.streamedLines = accumulatedLines
+	}
+
 	scrollToFirstDiff() {
 		if (!this.activeDiffEditor) {
 			return
@@ -361,6 +407,16 @@ export class DiffViewProvider {
 		}
 	}
 
+	// Finalize the streamed content when streaming is complete
+	async finalizeStreamedContent() {
+		if (this.bufferedContent) {
+			// Now perform the actual diff and update document
+			await this.update(this.bufferedContent, true)
+			this.bufferedContent = undefined
+			this._isStreamingMode = false
+		}
+	}
+
 	// close editor if open?
 	async reset() {
 		this.editType = undefined
@@ -373,5 +429,7 @@ export class DiffViewProvider {
 		this.activeLineController = undefined
 		this.streamedLines = []
 		this.preDiagnostics = []
+		this.bufferedContent = undefined
+		this._isStreamingMode = false
 	}
 }

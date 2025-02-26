@@ -16,7 +16,7 @@ import WorkspaceTracker from "../../integrations/workspace/WorkspaceTracker"
 import { McpHub } from "../../services/mcp/McpHub"
 import { McpDownloadResponse, McpMarketplaceCatalog, McpMarketplaceItem, McpServer } from "../../shared/mcp"
 import { FirebaseAuthManager, UserInfo } from "../../services/auth/FirebaseAuthManager"
-import { ApiProvider, ModelInfo } from "../../shared/api"
+import { ApiConfiguration, ApiProvider, ModelInfo } from "../../shared/api"
 import { findLast } from "../../shared/array"
 import { ExtensionMessage, ExtensionState, Platform } from "../../shared/ExtensionMessage"
 import { HistoryItem } from "../../shared/HistoryItem"
@@ -826,92 +826,150 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 
 	async togglePlanActModeWithChatSettings(chatSettings: ChatSettings, chatContent?: ChatContent) {
 		const didSwitchToActMode = chatSettings.mode === "act"
+		const oldMode = chatSettings.mode === "plan" ? "act" : "plan"
 
-		// Get previous model info that we will revert to after saving current mode api info
-		const {
-			apiConfiguration,
-			previousModeApiProvider: newApiProvider,
-			previousModeModelId: newModelId,
-			previousModeModelInfo: newModelInfo,
-		} = await this.getState()
+		// Get current state
+		const { apiConfiguration, chatSettings: currentChatSettings } = await this.getState()
 
-		// Save the last model used in this mode
-		await this.updateGlobalState("previousModeApiProvider", apiConfiguration.apiProvider)
-		switch (apiConfiguration.apiProvider) {
-			case "anthropic":
-			case "bedrock":
-			case "vertex":
-			case "gemini":
-				await this.updateGlobalState("previousModeModelId", apiConfiguration.apiModelId)
-				break
-			case "openrouter":
-				await this.updateGlobalState("previousModeModelId", apiConfiguration.openRouterModelId)
-				await this.updateGlobalState("previousModeModelInfo", apiConfiguration.openRouterModelInfo)
-				break
-			case "vscode-lm":
-				await this.updateGlobalState("previousModeModelId", apiConfiguration.vsCodeLmModelSelector)
-				break
-			case "openai":
-				await this.updateGlobalState("previousModeModelId", apiConfiguration.openAiModelId)
-				await this.updateGlobalState("previousModeModelInfo", apiConfiguration.openAiModelInfo)
-				break
-			case "ollama":
-				await this.updateGlobalState("previousModeModelId", apiConfiguration.ollamaModelId)
-				break
-			case "lmstudio":
-				await this.updateGlobalState("previousModeModelId", apiConfiguration.lmStudioModelId)
-				break
-			case "litellm":
-				await this.updateGlobalState("previousModeModelId", apiConfiguration.liteLlmModelId)
-				break
+		// Store current configuration to the old mode's settings
+		const updatedChatSettings = { ...currentChatSettings }
+
+		// Save the current API configuration to the old mode
+		if (oldMode === "plan") {
+			updatedChatSettings.planModeConfiguration = { ...apiConfiguration }
+		} else {
+			updatedChatSettings.actModeConfiguration = { ...apiConfiguration }
 		}
 
-		// Restore the model used in previous mode
-		if (newApiProvider && newModelId) {
-			await this.updateGlobalState("apiProvider", newApiProvider)
-			switch (newApiProvider) {
+		// Get the configuration for the new mode
+		let newModeConfiguration: ApiConfiguration | undefined
+
+		if (chatSettings.mode === "plan" && updatedChatSettings.planModeConfiguration) {
+			// Use stored plan mode configuration if available
+			newModeConfiguration = updatedChatSettings.planModeConfiguration
+		} else if (chatSettings.mode === "act" && updatedChatSettings.actModeConfiguration) {
+			// Use stored act mode configuration if available
+			newModeConfiguration = updatedChatSettings.actModeConfiguration
+		} else {
+			// Fall back to legacy mechanism for backward compatibility
+			const {
+				previousModeApiProvider: newApiProvider,
+				previousModeModelId: newModelId,
+				previousModeModelInfo: newModelInfo,
+			} = await this.getState()
+
+			if (newApiProvider && newModelId) {
+				// Build a new configuration based on the previous mode's settings
+				newModeConfiguration = { ...apiConfiguration, apiProvider: newApiProvider }
+
+				switch (newApiProvider) {
+					case "anthropic":
+					case "bedrock":
+					case "vertex":
+					case "gemini":
+						newModeConfiguration.apiModelId = newModelId
+						break
+					case "openrouter":
+						newModeConfiguration.openRouterModelId = newModelId
+						newModeConfiguration.openRouterModelInfo = newModelInfo
+						break
+					case "vscode-lm":
+						newModeConfiguration.vsCodeLmModelSelector = newModelId
+						break
+					case "openai":
+						newModeConfiguration.openAiModelId = newModelId
+						newModeConfiguration.openAiModelInfo = newModelInfo
+						break
+					case "ollama":
+						newModeConfiguration.ollamaModelId = newModelId
+						break
+					case "lmstudio":
+						newModeConfiguration.lmStudioModelId = newModelId
+						break
+					case "litellm":
+						newModeConfiguration.liteLlmModelId = newModelId
+						break
+				}
+			}
+
+			// Also save to legacy mechanism for backward compatibility
+			await this.updateGlobalState("previousModeApiProvider", apiConfiguration.apiProvider)
+			switch (apiConfiguration.apiProvider) {
 				case "anthropic":
 				case "bedrock":
 				case "vertex":
 				case "gemini":
-					await this.updateGlobalState("apiModelId", newModelId)
+					await this.updateGlobalState("previousModeModelId", apiConfiguration.apiModelId)
 					break
 				case "openrouter":
-					await this.updateGlobalState("openRouterModelId", newModelId)
-					await this.updateGlobalState("openRouterModelInfo", newModelInfo)
+					await this.updateGlobalState("previousModeModelId", apiConfiguration.openRouterModelId)
+					await this.updateGlobalState("previousModeModelInfo", apiConfiguration.openRouterModelInfo)
 					break
 				case "vscode-lm":
-					await this.updateGlobalState("vsCodeLmModelSelector", newModelId)
+					await this.updateGlobalState("previousModeModelId", apiConfiguration.vsCodeLmModelSelector)
 					break
 				case "openai":
-					await this.updateGlobalState("openAiModelId", newModelId)
-					await this.updateGlobalState("openAiModelInfo", newModelInfo)
+					await this.updateGlobalState("previousModeModelId", apiConfiguration.openAiModelId)
+					await this.updateGlobalState("previousModeModelInfo", apiConfiguration.openAiModelInfo)
 					break
 				case "ollama":
-					await this.updateGlobalState("ollamaModelId", newModelId)
+					await this.updateGlobalState("previousModeModelId", apiConfiguration.ollamaModelId)
 					break
 				case "lmstudio":
-					await this.updateGlobalState("lmStudioModelId", newModelId)
+					await this.updateGlobalState("previousModeModelId", apiConfiguration.lmStudioModelId)
 					break
 				case "litellm":
-					await this.updateGlobalState("liteLlmModelId", newModelId)
+					await this.updateGlobalState("previousModeModelId", apiConfiguration.liteLlmModelId)
 					break
 			}
+		}
 
+		// Apply the new mode's configuration if available
+		if (newModeConfiguration) {
+			// Update global state with the new configuration
+			await this.updateGlobalState("apiProvider", newModeConfiguration.apiProvider)
+
+			// Update all API configuration properties
+			const apiConfigKeys = Object.keys(newModeConfiguration) as (keyof ApiConfiguration)[]
+			for (const key of apiConfigKeys) {
+				if (key !== "apiProvider" && newModeConfiguration[key] !== undefined) {
+					// For each property in the configuration, update the global state
+					await this.updateGlobalState(key as GlobalStateKey, newModeConfiguration[key])
+
+					// For secret keys, update the secret storage
+					if (
+						key.includes("ApiKey") ||
+						key.includes("AccessKey") ||
+						key.includes("SecretKey") ||
+						key.includes("SessionToken")
+					) {
+						await this.storeSecret(key as SecretKey, newModeConfiguration[key] as string)
+					}
+				}
+			}
+
+			// Update Percy instance if it exists
 			if (this.cline) {
 				const { apiConfiguration: updatedApiConfiguration } = await this.getState()
 				this.cline.api = buildApiHandler(updatedApiConfiguration)
 			}
 		}
 
-		await this.updateGlobalState("chatSettings", chatSettings)
+		// Update chat settings with the new mode and configurations
+		const finalChatSettings = {
+			...chatSettings,
+			planModeConfiguration: updatedChatSettings.planModeConfiguration,
+			actModeConfiguration: updatedChatSettings.actModeConfiguration,
+		}
+
+		await this.updateGlobalState("chatSettings", finalChatSettings)
 		await this.postStateToWebview()
-		// console.log("chatSettings", message.chatSettings)
+
 		if (this.cline) {
-			this.cline.updateChatSettings(chatSettings)
+			this.cline.updateChatSettings(finalChatSettings)
 			if (this.cline.isAwaitingPlanResponse && didSwitchToActMode) {
 				this.cline.didRespondToPlanAskBySwitchingMode = true
-				// this is necessary for the webview to update accordingly, but Percy instance will not send text back as feedback message
+				// This is necessary for the webview to update accordingly, but Percy instance will not send text back as feedback message
 				await this.postMessageToWebview({
 					type: "invoke",
 					invoke: "sendMessage",

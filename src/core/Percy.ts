@@ -1821,10 +1821,10 @@ export class Percy {
 								}
 								// update editor
 								if (!this.diffViewProvider.isEditing) {
-									// open the editor and prepare to stream content in
-									await this.diffViewProvider.open(relPath)
+									// open the editor in streaming mode and prepare to stream content in
+									await this.diffViewProvider.open(relPath, true)
 								}
-								// editor is open, stream content in
+								// editor is open, stream content in with deferred diffing
 								await this.diffViewProvider.update(newContent, false)
 								break
 							} else {
@@ -1861,6 +1861,13 @@ export class Percy {
 									await this.ask("tool", partialMessage, true).catch(() => {}) // sending true for partial even though it's not a partial, this shows the edit row before the content is streamed into the editor
 									await this.diffViewProvider.open(relPath)
 								}
+
+								// If we were in streaming mode, finalize the content first
+								if (this.diffViewProvider.isStreamingMode) {
+									await this.diffViewProvider.finalizeStreamedContent()
+								}
+
+								// Then proceed with the update as normal
 								await this.diffViewProvider.update(newContent, true)
 								await delay(300) // wait for diff view to update
 								this.diffViewProvider.scrollToFirstDiff()

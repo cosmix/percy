@@ -196,11 +196,27 @@ function blockAnchorFallbackMatch(originalContent: string, searchContent: string
  *      content after the last replaced section is appended to the result.
  *    - Trailing newlines are not forcibly added. The code tries to output exactly what is specified.
  *
+ * 8. Deferred Matching:
+ *    - When `deferMatching` is true and it's not the final chunk, the function can return a
+ *      simplified preview result without performing expensive matching operations.
+ *    - This is useful for streaming mode where visual updates are needed but actual diffing
+ *      can be deferred until the final chunk.
+ *
  * Errors:
  * - If the search block cannot be matched using any of the available matching strategies,
  *   an error is thrown.
  */
-export async function constructNewFileContent(diffContent: string, originalContent: string, isFinal: boolean): Promise<string> {
+export async function constructNewFileContent(
+	diffContent: string,
+	originalContent: string,
+	isFinal: boolean,
+	deferMatching: boolean = false,
+): Promise<string> {
+	// If deferMatching is true and not the final chunk,
+	// return a simpler result for preview purposes only
+	if (deferMatching && !isFinal) {
+		return previewModeConstructNewFileContent(diffContent, originalContent)
+	}
 	let result = ""
 	let lastProcessedIndex = 0
 
@@ -340,4 +356,23 @@ export async function constructNewFileContent(diffContent: string, originalConte
 	}
 
 	return result
+}
+
+/**
+ * A simplified version of constructNewFileContent that doesn't perform expensive matching operations.
+ * This is used during streaming mode to provide visual updates without the computational cost.
+ *
+ * @param diffContent - The diff content being processed
+ * @param originalContent - The original file content
+ * @returns A simplified preview of what the content might look like
+ */
+function previewModeConstructNewFileContent(diffContent: string, originalContent: string): string {
+	// For preview purposes, we just return the original content
+	// This maintains the visual appearance without doing expensive diffing
+	// The actual diffing will be performed when streaming is complete
+
+	// A more sophisticated implementation could attempt to show a rough approximation
+	// of what the changes might look like, but for most cases, showing the original
+	// content is sufficient for visual streaming purposes
+	return originalContent
 }

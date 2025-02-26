@@ -1,5 +1,6 @@
 import { VSCodeButton, VSCodeLink, VSCodeTextArea } from "@vscode/webview-ui-toolkit/react"
 import { memo, useEffect, useState } from "react"
+import styled from "styled-components"
 import { useExtensionState } from "../../context/ExtensionStateContext"
 import { validateApiConfiguration, validateModelId } from "../../utils/validate"
 import { vscode } from "../../utils/vscode"
@@ -11,8 +12,28 @@ type SettingsViewProps = {
 	onDone: () => void
 }
 
+const PLAN_MODE_COLOR = "var(--vscode-inputValidation-warningBorder)"
+const ACT_MODE_COLOR = "var(--vscode-inputValidation-warningBorder)"
+
+const ModeIndicator = styled.div<{ mode: "plan" | "act" }>`
+	display: inline-flex;
+	align-items: center;
+	padding: 3px 8px;
+	border-radius: 3px;
+	font-size: 12px;
+	font-weight: 500;
+	margin-left: 10px;
+	background-color: ${(props) =>
+		props.mode === "plan"
+			? "color-mix(in srgb, " + PLAN_MODE_COLOR + " 15%, transparent)"
+			: "color-mix(in srgb, " + ACT_MODE_COLOR + " 15%, transparent)"};
+	color: ${(props) => (props.mode === "plan" ? PLAN_MODE_COLOR : ACT_MODE_COLOR)};
+	border: 1px solid ${(props) => (props.mode === "plan" ? PLAN_MODE_COLOR : ACT_MODE_COLOR)};
+`
+
 const SettingsView = ({ onDone }: SettingsViewProps) => {
-	const { apiConfiguration, version, customInstructions, setCustomInstructions, openRouterModels } = useExtensionState()
+	const { apiConfiguration, version, customInstructions, setCustomInstructions, openRouterModels, chatSettings } =
+		useExtensionState()
 	const [apiErrorMessage, setApiErrorMessage] = useState<string | undefined>(undefined)
 	const [modelIdErrorMessage, setModelIdErrorMessage] = useState<string | undefined>(undefined)
 
@@ -54,6 +75,16 @@ const SettingsView = ({ onDone }: SettingsViewProps) => {
 		vscode.postMessage({ type: "resetState" })
 	}
 
+	const toggleMode = () => {
+		const newMode = chatSettings.mode === "plan" ? "act" : "plan"
+		vscode.postMessage({
+			type: "togglePlanActMode",
+			chatSettings: {
+				mode: newMode,
+			},
+		})
+	}
+
 	return (
 		<div
 			style={{
@@ -75,8 +106,45 @@ const SettingsView = ({ onDone }: SettingsViewProps) => {
 					marginBottom: "17px",
 					paddingRight: 17,
 				}}>
-				<h3 style={{ color: "var(--vscode-foreground)", margin: 0 }}>Settings</h3>
-				<VSCodeButton onClick={handleSubmit}>Done</VSCodeButton>
+				<div style={{ display: "flex", alignItems: "center" }}>
+					<h3 style={{ color: "var(--vscode-foreground)", margin: 0 }}>
+						<ModeIndicator mode={chatSettings.mode}>{chatSettings.mode === "plan" ? "PLAN" : "ACT"}</ModeIndicator>
+						<span style={{ marginLeft: ".5rem" }}>Mode Profile</span>
+					</h3>
+				</div>
+				<div style={{ display: "flex", gap: "8px" }}>
+					<VSCodeButton appearance="secondary" onClick={toggleMode}>
+						Switch to {chatSettings.mode === "plan" ? "Act" : "Plan"} Mode
+					</VSCodeButton>
+					<VSCodeButton
+						appearance="secondary"
+						onClick={() => {
+							// Copy current configuration to the other mode
+							const sourceConfig = { ...apiConfiguration }
+							const targetMode = chatSettings.mode === "plan" ? "act" : "plan"
+
+							// Create updated chat settings with the copied configuration
+							const updatedChatSettings = { ...chatSettings }
+							if (targetMode === "plan") {
+								updatedChatSettings.planModeConfiguration = sourceConfig
+							} else {
+								updatedChatSettings.actModeConfiguration = sourceConfig
+							}
+
+							// Update the chat settings
+							vscode.postMessage({
+								type: "togglePlanActMode",
+								chatSettings: updatedChatSettings,
+							})
+
+							// Show a brief notification in the UI
+							// We can't directly show VS Code notifications from the webview
+							// so we'll just update the settings and let the user know through the UI change
+						}}>
+						Copy to {chatSettings.mode === "plan" ? "Act" : "Plan"} Mode
+					</VSCodeButton>
+					<VSCodeButton onClick={handleSubmit}>Done</VSCodeButton>
+				</div>
 			</div>
 			<div
 				style={{
@@ -92,6 +160,15 @@ const SettingsView = ({ onDone }: SettingsViewProps) => {
 						apiErrorMessage={apiErrorMessage}
 						modelIdErrorMessage={modelIdErrorMessage}
 					/>
+					<p
+						style={{
+							fontSize: "12px",
+							marginTop: "5px",
+							color: "var(--vscode-descriptionForeground)",
+						}}>
+						Each mode (Plan and Act) can have its own model configuration. Use the buttons above to switch between
+						modes or copy settings.
+					</p>
 				</div>
 
 				<div style={{ marginBottom: 5 }}>
