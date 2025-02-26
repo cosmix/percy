@@ -1,1 +1,1 @@
-Percy is a fork of Percy.
+Percy is a fork of Cline. It adds a number of minor features and improvements that have long been reported on the Cline repo, but never got prioritised. It also does away with all the "commercial features" cline has been recently adding, e.g. accounts, telemetry, etc.
