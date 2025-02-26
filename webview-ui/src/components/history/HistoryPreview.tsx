@@ -1,7 +1,7 @@
 import { VSCodeButton } from "@vscode/webview-ui-toolkit/react"
 import { useExtensionState } from "../../context/ExtensionStateContext"
 import { vscode } from "../../utils/vscode"
-import { memo } from "react"
+import { memo, useState } from "react"
 import { formatLargeNumber } from "../../utils/format"
 
 type HistoryPreviewProps = {
@@ -10,6 +10,8 @@ type HistoryPreviewProps = {
 
 const HistoryPreview = ({ showHistoryView }: HistoryPreviewProps) => {
 	const { taskHistory } = useExtensionState()
+	const [isCollapsed, setIsCollapsed] = useState(false)
+	
 	const handleHistorySelect = (id: string) => {
 		vscode.postMessage({ type: "showTaskWithId", text: id })
 	}
@@ -47,6 +49,13 @@ const HistoryPreview = ({ showHistoryView }: HistoryPreviewProps) => {
 						opacity: 1;
 						pointer-events: auto;
 					}
+					.history-toggle {
+						cursor: pointer;
+						transition: transform 0.2s ease;
+					}
+					.history-toggle:hover {
+						opacity: 0.8;
+					}
 				`}
 			</style>
 
@@ -56,105 +65,124 @@ const HistoryPreview = ({ showHistoryView }: HistoryPreviewProps) => {
 					margin: "10px 20px 10px 20px",
 					display: "flex",
 					alignItems: "center",
+					justifyContent: "space-between",
 				}}>
-				<span
-					className="codicon codicon-comment-discussion"
-					style={{
-						marginRight: "4px",
-						transform: "scale(0.9)",
-					}}></span>
-				<span
-					style={{
-						fontWeight: 500,
-						fontSize: "0.85em",
-						textTransform: "uppercase",
-					}}>
-					Recent Tasks
-				</span>
-			</div>
-
-			<div style={{ padding: "0px 20px 0 20px" }}>
-				{taskHistory
-					.filter((item) => item.ts && item.task)
-					.slice(0, 3)
-					.map((item) => (
-						<div key={item.id} className="history-preview-item" onClick={() => handleHistorySelect(item.id)}>
-							<div style={{ padding: "12px" }}>
-								<div style={{ marginBottom: "8px" }}>
-									<span
-										style={{
-											color: "var(--vscode-descriptionForeground)",
-											fontWeight: 500,
-											fontSize: "0.85em",
-											textTransform: "uppercase",
-										}}>
-										{formatDate(item.ts)}
-									</span>
-								</div>
-								<div
-									style={{
-										fontSize: "var(--vscode-font-size)",
-										color: "var(--vscode-descriptionForeground)",
-										marginBottom: "8px",
-										display: "-webkit-box",
-										WebkitLineClamp: 3,
-										WebkitBoxOrient: "vertical",
-										overflow: "hidden",
-										whiteSpace: "pre-wrap",
-										wordBreak: "break-word",
-										overflowWrap: "anywhere",
-									}}>
-									{item.task}
-								</div>
-								<div
-									style={{
-										fontSize: "0.85em",
-										color: "var(--vscode-descriptionForeground)",
-									}}>
-									<span>
-										Tokens: ↑{formatLargeNumber(item.tokensIn || 0)} ↓{formatLargeNumber(item.tokensOut || 0)}
-									</span>
-									{!!item.cacheWrites && (
-										<>
-											{" • "}
-											<span>
-												Cache: +{formatLargeNumber(item.cacheWrites || 0)} →{" "}
-												{formatLargeNumber(item.cacheReads || 0)}
-											</span>
-										</>
-									)}
-									{!!item.totalCost && (
-										<>
-											{" • "}
-											<span>API Cost: ${item.totalCost?.toFixed(4)}</span>
-										</>
-									)}
-								</div>
-							</div>
-						</div>
-					))}
-				<div
-					style={{
-						display: "flex",
-						alignItems: "center",
-						justifyContent: "center",
-					}}>
-					<VSCodeButton
-						appearance="icon"
-						onClick={() => showHistoryView()}
+				<div 
+					style={{ 
+						display: "flex", 
+						alignItems: "center", 
+						cursor: "pointer" 
+					}}
+					onClick={() => setIsCollapsed(!isCollapsed)}
+					className="history-toggle"
+				>
+					<span
+						className={`codicon codicon-${isCollapsed ? 'chevron-right' : 'chevron-down'}`}
 						style={{
-							opacity: 0.9,
+							marginRight: "4px",
+							transform: "scale(0.9)",
+						}}></span>
+					<span
+						className="codicon codicon-comment-discussion"
+						style={{
+							marginRight: "4px",
+							transform: "scale(0.9)",
+						}}></span>
+					<span
+						style={{
+							fontWeight: 500,
+							fontSize: "0.85em",
+							textTransform: "uppercase",
 						}}>
-						<div
-							style={{
-								fontSize: "var(--vscode-font-size)",
-								color: "var(--vscode-descriptionForeground)",
-							}}>
-							View all history
-						</div>
-					</VSCodeButton>
+						Recent Tasks
+					</span>
 				</div>
 			</div>
+
+			{!isCollapsed && (
+				<div style={{ padding: "0px 20px 0 20px" }}>
+					{taskHistory
+						.filter((item) => item.ts && item.task)
+						.slice(0, 3)
+						.map((item) => (
+							<div key={item.id} className="history-preview-item" onClick={() => handleHistorySelect(item.id)}>
+								<div style={{ padding: "12px" }}>
+									<div style={{ marginBottom: "8px" }}>
+										<span
+											style={{
+												color: "var(--vscode-descriptionForeground)",
+												fontWeight: 500,
+												fontSize: "0.85em",
+												textTransform: "uppercase",
+											}}>
+											{formatDate(item.ts)}
+										</span>
+									</div>
+									<div
+										style={{
+											fontSize: "var(--vscode-font-size)",
+											color: "var(--vscode-descriptionForeground)",
+											marginBottom: "8px",
+											display: "-webkit-box",
+											WebkitLineClamp: 3,
+											WebkitBoxOrient: "vertical",
+											overflow: "hidden",
+											whiteSpace: "pre-wrap",
+											wordBreak: "break-word",
+											overflowWrap: "anywhere",
+										}}>
+										{item.task}
+									</div>
+									<div
+										style={{
+											fontSize: "0.85em",
+											color: "var(--vscode-descriptionForeground)",
+										}}>
+										<span>
+											Tokens: ↑{formatLargeNumber(item.tokensIn || 0)} ↓{formatLargeNumber(item.tokensOut || 0)}
+										</span>
+										{!!item.cacheWrites && (
+											<>
+												{" • "}
+												<span>
+													Cache: +{formatLargeNumber(item.cacheWrites || 0)} →{" "}
+													{formatLargeNumber(item.cacheReads || 0)}
+												</span>
+											</>
+										)}
+										{!!item.totalCost && (
+											<>
+												{" • "}
+												<span>API Cost: ${item.totalCost?.toFixed(4)}</span>
+											</>
+										)}
+									</div>
+								</div>
+							</div>
+						))}
+					<div
+						style={{
+							display: "flex",
+							alignItems: "center",
+							justifyContent: "center",
+						}}>
+						<VSCodeButton
+							appearance="icon"
+							onClick={() => showHistoryView()}
+							style={{
+								opacity: 0.9,
+							}}>
+							<div
+								style={{
+									fontSize: "var(--vscode-font-size)",
+									color: "var(--vscode-descriptionForeground)",
+								}}>
+								View all history
+							</div>
+						</VSCodeButton>
+					</div>
+				</div>
+			)}
 		</div>
 	)
 }
