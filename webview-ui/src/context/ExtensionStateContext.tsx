@@ -97,9 +97,9 @@ export const ExtensionStateContextProvider: React.FC<{
 					// worth noting it will never be possible for a more up-to-date message to be sent here or in normal messages post since the presentAssistantContent function uses lock
 					const lastIndex = findLastIndex(prevState.clineMessages, (msg) => msg.ts === partialMessage.ts)
 					if (lastIndex !== -1) {
-						const newClineMessages = [...prevState.clineMessages]
-						newClineMessages[lastIndex] = partialMessage
-						return { ...prevState, clineMessages: newClineMessages }
+						const newPercyMessages = [...prevState.clineMessages]
+						newPercyMessages[lastIndex] = partialMessage
+						return { ...prevState, clineMessages: newPercyMessages }
 					}
 					return prevState
 				})

@@ -3,7 +3,7 @@ import * as childProcess from "child_process"
 import * as path from "path"
 import * as readline from "readline"
 import { fileExistsAtPath } from "../../utils/fs"
-import { ClineIgnoreController } from "../../core/ignore/ClineIgnoreController"
+import { PercyIgnoreController } from "../../core/ignore/PercyIgnoreController"
 
 /*
 This file provides functionality to perform regex searches on files using ripgrep.
@@ -120,7 +120,7 @@ export async function regexSearchFiles(
 	directoryPath: string,
 	regex: string,
 	filePattern?: string,
-	clineIgnoreController?: ClineIgnoreController,
+	clineIgnoreController?: PercyIgnoreController,
 ): Promise<string> {
 	const vscodeAppRoot = vscode.env.appRoot
 	const rgPath = await getBinPath(vscodeAppRoot)
@@ -173,7 +173,7 @@ export async function regexSearchFiles(
 		results.push(currentResult as SearchResult)
 	}
 
-	// Filter results using ClineIgnoreController if provided
+	// Filter results using PercyIgnoreController if provided
 	const filteredResults = clineIgnoreController
 		? results.filter((result) => clineIgnoreController.validateAccess(result.filePath))
 		: results

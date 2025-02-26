@@ -1,7 +1,7 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import * as diff from "diff"
 import * as path from "path"
-import { ClineIgnoreController, LOCK_TEXT_SYMBOL } from "../ignore/ClineIgnoreController"
+import { PercyIgnoreController, LOCK_TEXT_SYMBOL } from "../ignore/PercyIgnoreController"
 
 export const formatResponse = {
 	toolDenied: () => `The user denied this operation.`,
@@ -51,7 +51,7 @@ Otherwise, if you have not completed the task and do not need additional informa
 		absolutePath: string,
 		files: string[],
 		didHitLimit: boolean,
-		clineIgnoreController?: ClineIgnoreController,
+		clineIgnoreController?: PercyIgnoreController,
 	): string => {
 		const sorted = files
 			.map((file) => {

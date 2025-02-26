@@ -1,8 +1,8 @@
 {
-	"name": "claude-dev",
-	"displayName": "Cline",
-	"description": "Autonomous coding agent right in your IDE, capable of creating/editing files, running commands, using the browser, and more with your permission every step of the way.",
-	"version": "3.4.8",
+	"name": "percy",
+	"displayName": "Percy",
+	"description": "An Agentic Software Engineering AI Assistant",
+	"version": "1.0.0",
 	"icon": "assets/icons/icon.png",
 	"galleryBanner": {
 		"color": "#617A91",
@@ -12,15 +12,15 @@
 		"vscode": "^1.84.0"
 	},
 	"author": {
-		"name": "Cline Bot Inc."
+		"name": "Dimosthenis Kaponis"
 	},
 	"license": "Apache-2.0",
-	"publisher": "saoudrizwan",
+	"publisher": "cosmix",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/cline/cline"
+		"url": "https://github.com/cosmix/percy"
 	},
-	"homepage": "https://cline.bot",
+	"homepage": "https://www.cosmix.org",
 	"categories": [
 		"AI",
 		"Chat",
@@ -30,7 +30,7 @@
 		"Testing"
 	],
 	"keywords": [
-		"cline",
+		"percy",
 		"claude",
 		"dev",
 		"mcp",
@@ -49,86 +49,86 @@
 		"viewsContainers": {
 			"activitybar": [
 				{
-					"id": "claude-dev-ActivityBar",
-					"title": "Cline",
+					"id": "percy-ActivityBar",
+					"title": "Percy",
 					"icon": "assets/icons/icon.svg"
 				}
 			]
 		},
 		"views": {
-			"claude-dev-ActivityBar": [
+			"percy-ActivityBar": [
 				{
 					"type": "webview",
-					"id": "claude-dev.SidebarProvider",
+					"id": "percy.SidebarProvider",
 					"name": ""
 				}
 			]
 		},
 		"commands": [
 			{
-				"command": "cline.plusButtonClicked",
+				"command": "percy.plusButtonClicked",
 				"title": "New Task",
 				"icon": "$(add)"
 			},
 			{
-				"command": "cline.mcpButtonClicked",
+				"command": "percy.mcpButtonClicked",
 				"title": "MCP Servers",
 				"icon": "$(extensions)"
 			},
 			{
-				"command": "cline.historyButtonClicked",
+				"command": "percy.historyButtonClicked",
 				"title": "History",
 				"icon": "$(history)"
 			},
 			{
-				"command": "cline.popoutButtonClicked",
+				"command": "percy.popoutButtonClicked",
 				"title": "Open in Editor",
 				"icon": "$(link-external)"
 			},
 			{
-				"command": "cline.settingsButtonClicked",
+				"command": "percy.settingsButtonClicked",
 				"title": "Settings",
 				"icon": "$(settings-gear)"
 			},
 			{
-				"command": "cline.openInNewTab",
+				"command": "percy.openInNewTab",
 				"title": "Open In New Tab",
-				"category": "Cline"
+				"category": "Percy"
 			}
 		],
 		"menus": {
 			"view/title": [
 				{
-					"command": "cline.plusButtonClicked",
+					"command": "percy.plusButtonClicked",
 					"group": "navigation@1",
-					"when": "view == claude-dev.SidebarProvider"
+					"when": "view == percy.SidebarProvider"
 				},
 				{
-					"command": "cline.mcpButtonClicked",
+					"command": "percy.mcpButtonClicked",
 					"group": "navigation@2",
-					"when": "view == claude-dev.SidebarProvider"
+					"when": "view == percy.SidebarProvider"
 				},
 				{
-					"command": "cline.historyButtonClicked",
+					"command": "percy.historyButtonClicked",
 					"group": "navigation@3",
-					"when": "view == claude-dev.SidebarProvider"
+					"when": "view == percy.SidebarProvider"
 				},
 				{
-					"command": "cline.popoutButtonClicked",
+					"command": "percy.popoutButtonClicked",
 					"group": "navigation@4",
-					"when": "view == claude-dev.SidebarProvider"
+					"when": "view == percy.SidebarProvider"
 				},
 				{
-					"command": "cline.settingsButtonClicked",
+					"command": "percy.settingsButtonClicked",
 					"group": "navigation@5",
-					"when": "view == claude-dev.SidebarProvider"
+					"when": "view == percy.SidebarProvider"
 				}
 			]
 		},
 		"configuration": {
-			"title": "Cline",
+			"title": "Percy",
 			"properties": {
-				"cline.vsCodeLmModelSelector": {
+				"percy.vsCodeLmModelSelector": {
 					"type": "object",
 					"properties": {
 						"vendor": {
@@ -142,7 +142,7 @@
 					},
 					"description": "Settings for VSCode Language Model API"
 				},
-				"cline.mcp.mode": {
+				"percy.mcp.mode": {
 					"type": "string",
 					"enum": [
 						"full",
@@ -157,17 +157,17 @@
 					"default": "full",
 					"description": "Controls MCP inclusion in prompts, reduces token usage if you only need access to certain functionality."
 				},
-				"cline.enableCheckpoints": {
+				"percy.enableCheckpoints": {
 					"type": "boolean",
 					"default": true,
 					"description": "Enables extension to save checkpoints of workspace throughout the task."
 				},
-				"cline.disableBrowserTool": {
+				"percy.disableBrowserTool": {
 					"type": "boolean",
 					"default": false,
 					"description": "Disables extension from spawning browser session."
 				},
-				"cline.modelSettings.o3Mini.reasoningEffort": {
+				"percy.modelSettings.o3Mini.reasoningEffort": {
 					"type": "string",
 					"enum": [
 						"low",
@@ -177,14 +177,14 @@
 					"default": "medium",
 					"description": "Controls the reasoning effort when using the o3-mini model. Higher values may result in more thorough but slower responses."
 				},
-				"cline.chromeExecutablePath": {
+				"percy.chromeExecutablePath": {
 					"type": "string",
 					"default": null,
 					"description": "Path to Chrome executable for browser use functionality. If not set, the extension will attempt to find or download it automatically."
 				},
-				"cline.mcpMarketplace.enabled": {
+				"percy.mcpMarketplace.enabled": {
 					"type": "boolean",
-					"default": true,
+					"default": false,
 					"description": "Controls whether the MCP Marketplace is enabled."
 				}
 			}

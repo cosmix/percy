@@ -20,9 +20,9 @@ import { ApiProvider, ModelInfo } from "../../shared/api"
 import { findLast } from "../../shared/array"
 import { ExtensionMessage, ExtensionState, Platform } from "../../shared/ExtensionMessage"
 import { HistoryItem } from "../../shared/HistoryItem"
-import { ClineCheckpointRestore, WebviewMessage } from "../../shared/WebviewMessage"
+import { PercyCheckpointRestore, WebviewMessage } from "../../shared/WebviewMessage"
 import { fileExistsAtPath } from "../../utils/fs"
-import { Cline } from "../Cline"
+import { Percy } from "../Percy"
 import { openMention } from "../mentions"
 import { getNonce } from "./getNonce"
 import { getUri } from "./getUri"
@@ -106,13 +106,13 @@ export const GlobalFileNames = {
 	clineRules: ".clinerules",
 }
 
-export class ClineProvider implements vscode.WebviewViewProvider {
-	public static readonly sideBarId = "claude-dev.SidebarProvider" // used in package.json as the view's id. This value cannot be changed due to how vscode caches views based on their id, and updating the id would break existing instances of the extension.
-	public static readonly tabPanelId = "claude-dev.TabPanelProvider"
-	private static activeInstances: Set<ClineProvider> = new Set()
+export class PercyProvider implements vscode.WebviewViewProvider {
+	public static readonly sideBarId = "percy.SidebarProvider" // used in package.json as the view's id. This value cannot be changed due to how vscode caches views based on their id, and updating the id would break existing instances of the extension.
+	public static readonly tabPanelId = "percy.TabPanelProvider"
+	private static activeInstances: Set<PercyProvider> = new Set()
 	private disposables: vscode.Disposable[] = []
 	private view?: vscode.WebviewView | vscode.WebviewPanel
-	private cline?: Cline
+	private cline?: Percy
 	workspaceTracker?: WorkspaceTracker
 	mcpHub?: McpHub
 	private authManager: FirebaseAuthManager
@@ -122,8 +122,8 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 		readonly context: vscode.ExtensionContext,
 		private readonly outputChannel: vscode.OutputChannel,
 	) {
-		this.outputChannel.appendLine("ClineProvider instantiated")
-		ClineProvider.activeInstances.add(this)
+		this.outputChannel.appendLine("PercyProvider instantiated")
+		PercyProvider.activeInstances.add(this)
 		this.workspaceTracker = new WorkspaceTracker(this)
 		this.mcpHub = new McpHub(this)
 		this.authManager = new FirebaseAuthManager(this)
@@ -135,7 +135,7 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 	- https://github.com/microsoft/vscode-extension-samples/blob/main/webview-sample/src/extension.ts
 	*/
 	async dispose() {
-		this.outputChannel.appendLine("Disposing ClineProvider...")
+		this.outputChannel.appendLine("Disposing PercyProvider...")
 		await this.clearTask()
 		this.outputChannel.appendLine("Cleared task")
 		if (this.view && "dispose" in this.view) {
@@ -154,14 +154,14 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 		this.mcpHub = undefined
 		this.authManager.dispose()
 		this.outputChannel.appendLine("Disposed all disposables")
-		ClineProvider.activeInstances.delete(this)
+		PercyProvider.activeInstances.delete(this)
 	}
 
 	// Auth methods
 	async handleSignOut() {
 		try {
 			await this.authManager.signOut()
-			vscode.window.showInformationMessage("Successfully logged out of Cline")
+			vscode.window.showInformationMessage("Successfully logged out of Percy")
 		} catch (error) {
 			vscode.window.showErrorMessage("Logout failed")
 		}
@@ -175,7 +175,7 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 		await this.updateGlobalState("userInfo", info)
 	}
 
-	public static getVisibleInstance(): ClineProvider | undefined {
+	public static getVisibleInstance(): PercyProvider | undefined {
 		return findLast(Array.from(this.activeInstances), (instance) => instance.view?.visible === true)
 	}
 
@@ -269,11 +269,11 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 		this.outputChannel.appendLine("Webview view resolved")
 	}
 
-	async initClineWithTask(task?: string, images?: string[]) {
+	async initPercyWithTask(task?: string, images?: string[]) {
 		await this.clearTask() // ensures that an existing task doesn't exist before starting a new one, although this shouldn't be possible since user must clear task before starting a new one
 		const { apiConfiguration, customInstructions, autoApprovalSettings, browserSettings, chatSettings } =
 			await this.getState()
-		this.cline = new Cline(
+		this.cline = new Percy(
 			this,
 			apiConfiguration,
 			autoApprovalSettings,
@@ -285,11 +285,11 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 		)
 	}
 
-	async initClineWithHistoryItem(historyItem: HistoryItem) {
+	async initPercyWithHistoryItem(historyItem: HistoryItem) {
 		await this.clearTask()
 		const { apiConfiguration, customInstructions, autoApprovalSettings, browserSettings, chatSettings } =
 			await this.getState()
-		this.cline = new Cline(
+		this.cline = new Percy(
 			this,
 			apiConfiguration,
 			autoApprovalSettings,
@@ -371,7 +371,7 @@ export class ClineProvider implements vscode.WebviewViewProvider {
             <meta http-equiv="Content-Security-Policy" content="default-src 'none'; font-src ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline'; img-src ${webview.cspSource} https: data:; script-src 'nonce-${nonce}';">
             <link rel="stylesheet" type="text/css" href="${stylesUri}">
 			<link href="${codiconsUri}" rel="stylesheet" />
-            <title>Cline</title>
+            <title>Percy</title>
           </head>
           <body>
             <noscript>You need to enable JavaScript to run this app.</noscript>
@@ -447,8 +447,8 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 						// You can send any JSON serializable data.
 						// Could also do this in extension .ts
 						//this.postMessageToWebview({ type: "text", text: `Extension: ${Date.now()}` })
-						// initializing new instance of Cline will make sure that any agentically running promises in old instance don't affect our new task. this essentially creates a fresh slate for the new task
-						await this.initClineWithTask(message.text, message.images)
+						// initializing new instance of Percy will make sure that any agentically running promises in old instance don't affect our new task. this essentially creates a fresh slate for the new task
+						await this.initPercyWithTask(message.text, message.images)
 						break
 					case "apiConfiguration":
 						if (message.apiConfiguration) {
@@ -663,7 +663,7 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 								console.error("Failed to init new cline instance")
 							})
 							// NOTE: cancelTask awaits abortTask, which awaits diffViewProvider.revertChanges, which reverts any edited files, allowing us to reset to a checkpoint rather than running into a state where the revertChanges function is called alongside or after the checkpoint reset
-							await this.cline?.restoreCheckpoint(message.number, message.text! as ClineCheckpointRestore)
+							await this.cline?.restoreCheckpoint(message.number, message.text! as PercyCheckpointRestore)
 						}
 						break
 					}
@@ -679,30 +679,6 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 					case "getLatestState":
 						await this.postStateToWebview()
 						break
-					case "subscribeEmail":
-						this.subscribeEmail(message.text)
-						break
-					case "accountLoginClicked": {
-						// Generate nonce for state validation
-						const nonce = crypto.randomBytes(32).toString("hex")
-						await this.storeSecret("authNonce", nonce)
-
-						// Open browser for authentication with state param
-						console.log("Login button clicked in account page")
-						console.log("Opening auth page with state param")
-
-						const uriScheme = vscode.env.uriScheme
-
-						const authUrl = vscode.Uri.parse(
-							`https://app.cline.bot/auth?state=${encodeURIComponent(nonce)}&callback_url=${encodeURIComponent(`${uriScheme || "vscode"}://saoudrizwan.claude-dev/auth`)}`,
-						)
-						vscode.env.openExternal(authUrl)
-						break
-					}
-					case "accountLogoutClicked": {
-						await this.handleSignOut()
-						break
-					}
 					case "showMcpView": {
 						await this.postMessageToWebview({ type: "action", action: "mcpButtonClicked" })
 						break
@@ -830,7 +806,7 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 						const settingsFilter = message.text || ""
 						await vscode.commands.executeCommand(
 							"workbench.action.openSettings",
-							`@ext:saoudrizwan.claude-dev ${settingsFilter}`.trim(), // trim whitespace if no settings filter
+							`@ext:saoudrizwan.percy ${settingsFilter}`.trim(), // trim whitespace if no settings filter
 						)
 						break
 					}
@@ -935,7 +911,7 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 			this.cline.updateChatSettings(chatSettings)
 			if (this.cline.isAwaitingPlanResponse && didSwitchToActMode) {
 				this.cline.didRespondToPlanAskBySwitchingMode = true
-				// this is necessary for the webview to update accordingly, but Cline instance will not send text back as feedback message
+				// this is necessary for the webview to update accordingly, but Percy instance will not send text back as feedback message
 				await this.postMessageToWebview({
 					type: "invoke",
 					invoke: "sendMessage",
@@ -945,36 +921,6 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 			} else {
 				this.cancelTask()
 			}
-		}
-	}
-
-	async subscribeEmail(email?: string) {
-		if (!email) {
-			return
-		}
-		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-		if (!emailRegex.test(email)) {
-			vscode.window.showErrorMessage("Please enter a valid email address")
-			return
-		}
-		console.log("Subscribing email:", email)
-		this.postMessageToWebview({ type: "emailSubscribed" })
-		// Currently ignoring errors to this endpoint, but after accounts we'll remove this anyways
-		try {
-			const response = await axios.post(
-				"https://app.cline.bot/api/mailing-list",
-				{
-					email: email,
-				},
-				{
-					headers: {
-						"Content-Type": "application/json",
-					},
-				},
-			)
-			console.log("Email subscribed successfully. Response:", response.data)
-		} catch (error) {
-			console.error("Failed to subscribe email:", error)
 		}
 	}
 
@@ -1002,8 +948,8 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 				// 'abandoned' will prevent this cline instance from affecting future cline instance gui. this may happen if its hanging on a streaming request
 				this.cline.abandoned = true
 			}
-			await this.initClineWithHistoryItem(historyItem) // clears task again, so we need to abortTask manually above
-			// await this.postStateToWebview() // new Cline instance will post state when it's ready. having this here sent an empty messages array to webview leading to virtuoso having to reload the entire list
+			await this.initPercyWithHistoryItem(historyItem) // clears task again, so we need to abortTask manually above
+			// await this.postStateToWebview() // new Percy instance will post state when it's ready. having this here sent an empty messages array to webview leading to virtuoso having to reload the entire list
 		}
 	}
 
@@ -1039,11 +985,11 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 
 	async ensureMcpServersDirectoryExists(): Promise<string> {
 		const userDocumentsPath = await this.getDocumentsPath()
-		const mcpServersDir = path.join(userDocumentsPath, "Cline", "MCP")
+		const mcpServersDir = path.join(userDocumentsPath, "Percy", "MCP")
 		try {
 			await fs.mkdir(mcpServersDir, { recursive: true })
 		} catch (error) {
-			return "~/Documents/Cline/MCP" // in case creating a directory in documents fails for whatever reason (e.g. permissions) - this is fine since this path is only ever used in the system prompt
+			return "~/Documents/Percy/MCP" // in case creating a directory in documents fails for whatever reason (e.g. permissions) - this is fine since this path is only ever used in the system prompt
 		}
 		return mcpServersDir
 	}
@@ -1123,10 +1069,10 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 			// Then store the token securely
 			await this.storeSecret("authToken", token)
 			await this.postStateToWebview()
-			vscode.window.showInformationMessage("Successfully logged in to Cline")
+			vscode.window.showInformationMessage("Successfully logged in to Percy")
 		} catch (error) {
 			console.error("Failed to handle auth callback:", error)
-			vscode.window.showErrorMessage("Failed to log in to Cline")
+			vscode.window.showErrorMessage("Failed to log in to Percy")
 		}
 	}
 
@@ -1266,7 +1212,7 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 Here is the project's README to help you get started:\n\n${mcpDetails.readmeContent}\n${mcpDetails.llmsInstallationContent}`
 
 			// Initialize task and show chat view
-			await this.initClineWithTask(task)
+			await this.initPercyWithTask(task)
 			await this.postMessageToWebview({
 				type: "action",
 				action: "chatButtonClicked",
@@ -1527,7 +1473,7 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 		if (id !== this.cline?.taskId) {
 			// non-current task
 			const { historyItem } = await this.getTaskWithId(id)
-			await this.initClineWithHistoryItem(historyItem) // clears existing task
+			await this.initPercyWithHistoryItem(historyItem) // clears existing task
 		}
 		await this.postMessageToWebview({
 			type: "action",
@@ -1638,10 +1584,10 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 	/*
 	Now that we use retainContextWhenHidden, we don't have to store a cache of cline messages in the user's state, but we could to reduce memory footprint in long conversations.
 
-	- We have to be careful of what state is shared between ClineProvider instances since there could be multiple instances of the extension running at once. For example when we cached cline messages using the same key, two instances of the extension could end up using the same key and overwriting each other's messages.
+	- We have to be careful of what state is shared between PercyProvider instances since there could be multiple instances of the extension running at once. For example when we cached cline messages using the same key, two instances of the extension could end up using the same key and overwriting each other's messages.
 	- Some state does need to be shared between the instances, i.e. the API key--however there doesn't seem to be a good way to notify the other instances that the API key has changed.
 
-	We need to use a unique identifier for each ClineProvider instance's message cache since we could be running several instances of the extension outside of just the sidebar i.e. in editor panels.
+	We need to use a unique identifier for each PercyProvider instance's message cache since we could be running several instances of the extension outside of just the sidebar i.e. in editor panels.
 
 	// conversation history to send in API requests
 

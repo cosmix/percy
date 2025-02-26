@@ -9,7 +9,7 @@ interface AnnouncementProps {
 }
 
 /*
-You must update the latestAnnouncementId in ClineProvider for new announcements to show to users. This new id will be compared with whats in state for the 'last announcement shown', and if it's different then the announcement will render. As soon as an announcement is shown, the id will be updated in state. This ensures that announcements are not shown more than once, even if the user doesn't close it themselves.
+You must update the latestAnnouncementId in PercyProvider for new announcements to show to users. This new id will be compared with whats in state for the 'last announcement shown', and if it's different then the announcement will render. As soon as an announcement is shown, the id will be updated in state. This ensures that announcements are not shown more than once, even if the user doesn't close it themselves.
 */
 const Announcement = ({ version, hideAnnouncement }: AnnouncementProps) => {
 	const minorVersion = version.split(".").slice(0, 2).join(".") // 2.0.0 -> 2.0
@@ -43,7 +43,7 @@ const Announcement = ({ version, hideAnnouncement }: AnnouncementProps) => {
 					.
 				</li>
 				<li>
-					<b>Mermaid diagrams in Plan mode!</b> Cline can now visualize his plans using flowcharts, sequences,
+					<b>Mermaid diagrams in Plan mode!</b> Percy can now visualize his plans using flowcharts, sequences,
 					entity-relationships, and more. When he explains his approach using mermaid, you'll see a diagram right in
 					chat that you can click to expand.
 				</li>
@@ -93,16 +93,16 @@ const Announcement = ({ version, hideAnnouncement }: AnnouncementProps) => {
 					)}
 				</li>
 				<li>
-					<b>Edit Cline's changes before accepting!</b> When he creates or edits a file, you can modify his
+					<b>Edit Percy's changes before accepting!</b> When he creates or edits a file, you can modify his
 					changes directly in the right side of the diff view (+ hover over the 'Revert Block' arrow button in
 					the center to undo "<code>{"// rest of code here"}</code>" shenanigans)
 				</li>
 				<li>
-					New <code>search_files</code> tool that lets Cline perform regex searches in your project, letting
+					New <code>search_files</code> tool that lets Percy perform regex searches in your project, letting
 					him refactor code, address TODOs and FIXMEs, remove dead code, and more!
 				</li>
 				<li>
-					When Cline runs commands, you can now type directly in the terminal (+ support for Python
+					When Percy runs commands, you can now type directly in the terminal (+ support for Python
 					environments)
 				</li>
 			</ul>*/}
