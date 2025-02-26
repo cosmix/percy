@@ -2,7 +2,7 @@ import { VSCodeBadge, VSCodeProgressRing } from "@vscode/webview-ui-toolkit/reac
 import deepEqual from "fast-deep-equal"
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useEvent, useSize } from "react-use"
-import styled from "styled-components"
+import styled, { keyframes } from "styled-components"
 import {
 	ClineApiReqInfo,
 	ClineAskUseMcpServer,
@@ -25,6 +25,23 @@ import McpResourceRow from "../mcp/McpResourceRow"
 import McpToolRow from "../mcp/McpToolRow"
 import { highlightMentions } from "./TaskHeader"
 import { CheckmarkControl } from "../common/CheckmarkControl"
+
+const throb = keyframes`
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+`
+
+const ThrobbingDots = styled.span`
+	display: inline-flex;
+	align-items: center;
+
+	&::after {
+		content: "...";
+		animation: ${throb} 1.5s infinite ease-in-out;
+		letter-spacing: 1px;
+		margin-left: 2px;
+	}
+`
 
 const ChatRowContainer = styled.div`
 	padding: 10px 6px 10px 15px;
@@ -97,10 +114,76 @@ const ChatRow = memo(
 	deepEqual,
 )
 
+// Helper function to render the reasoning block
+const renderReasoningBlock = (
+	text?: string,
+	reasoningBlocksExpanded?: boolean,
+	isExpanded?: boolean,
+	onToggleExpand?: () => void,
+	isActive?: boolean, // Whether the reasoning is still being generated
+) => {
+	if (!text) return null
+
+	const isReasoningExpanded = reasoningBlocksExpanded !== undefined ? reasoningBlocksExpanded : isExpanded
+
+	const handleReasoningClick = () => {
+		// Toggle the global reasoningBlocksExpanded state
+		vscode.postMessage({
+			type: "updateReasoningBlocksExpanded",
+			expanded: !isReasoningExpanded,
+		})
+		// Also call the local toggle for backward compatibility
+		onToggleExpand?.()
+	}
+
+	return (
+		<>
+			<div
+				onClick={handleReasoningClick}
+				style={{
+					cursor: "pointer",
+					color: "var(--vscode-descriptionForeground)",
+					fontStyle: "italic",
+					overflow: "hidden",
+				}}>
+				{isReasoningExpanded ? (
+					<div style={{ marginTop: -3 }}>
+						<span style={{ fontWeight: "bold", display: "block", marginBottom: "4px" }}>
+							Reasoning
+							<span
+								className="codicon codicon-chevron-down"
+								style={{
+									display: "inline-block",
+									transform: "translateY(3px)",
+									marginLeft: "1.5px",
+								}}
+							/>
+						</span>
+						{text}
+					</div>
+				) : (
+					<div style={{ display: "flex", alignItems: "center" }}>
+						<span style={{ fontWeight: "bold", marginRight: "4px" }}>Reasoning</span>
+						{isActive && <ThrobbingDots />}
+						<div style={{ flex: 1 }}></div>
+						<span
+							className="codicon codicon-chevron-right"
+							style={{
+								marginLeft: "4px",
+								flexShrink: 0,
+							}}
+						/>
+					</div>
+				)}
+			</div>
+		</>
+	)
+}
+
 export default ChatRow
 
 export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifiedMessage, isLast }: ChatRowContentProps) => {
-	const { mcpServers, mcpMarketplaceCatalog } = useExtensionState()
+	const { mcpServers, mcpMarketplaceCatalog, reasoningBlocksExpanded } = useExtensionState()
 
 	const [seeNewChangesDisabled, setSeeNewChangesDisabled] = useState(false)
 
@@ -816,60 +899,12 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 						</div>
 					)
 				case "reasoning":
-					return (
-						<>
-							{message.text && (
-								<div
-									onClick={onToggleExpand}
-									style={{
-										// marginBottom: 15,
-										cursor: "pointer",
-										color: "var(--vscode-descriptionForeground)",
-
-										fontStyle: "italic",
-										overflow: "hidden",
-									}}>
-									{isExpanded ? (
-										<div style={{ marginTop: -3 }}>
-											<span style={{ fontWeight: "bold", display: "block", marginBottom: "4px" }}>
-												Reasoning
-												<span
-													className="codicon codicon-chevron-down"
-													style={{
-														display: "inline-block",
-														transform: "translateY(3px)",
-														marginLeft: "1.5px",
-													}}
-												/>
-											</span>
-											{message.text}
-										</div>
-									) : (
-										<div style={{ display: "flex", alignItems: "center" }}>
-											<span style={{ fontWeight: "bold", marginRight: "4px" }}>Reasoning:</span>
-											<span
-												style={{
-													whiteSpace: "nowrap",
-													overflow: "hidden",
-													textOverflow: "ellipsis",
-													direction: "rtl",
-													textAlign: "left",
-													flex: 1,
-												}}>
-												{message.text + "\u200E"}
-											</span>
-											<span
-												className="codicon codicon-chevron-right"
-												style={{
-													marginLeft: "4px",
-													flexShrink: 0,
-												}}
-											/>
-										</div>
-									)}
-								</div>
-							)}
-						</>
+					return renderReasoningBlock(
+						message.text,
+						reasoningBlocksExpanded,
+						isExpanded,
+						onToggleExpand,
+						message.partial && isLast, // Only show throbbing dots when the message is partial and is the last message
 					)
 				case "user_feedback":
 					return (

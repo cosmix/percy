@@ -81,6 +81,7 @@ export interface ExtensionState {
 		photoURL: string | null
 	}
 	mcpMarketplaceEnabled?: boolean
+	reasoningBlocksExpanded?: boolean
 }
 
 export interface ClineMessage {

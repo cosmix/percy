@@ -77,6 +77,8 @@ type GlobalStateKey =
 	| "lmStudioModelId"
 	| "lmStudioBaseUrl"
 	| "anthropicBaseUrl"
+	| "anthropicThinking"
+	| "maxTokens"
 	| "azureApiVersion"
 	| "openRouterModelId"
 	| "openRouterModelInfo"
@@ -94,6 +96,7 @@ type GlobalStateKey =
 	| "requestyModelId"
 	| "togetherModelId"
 	| "mcpMarketplaceCatalog"
+	| "reasoningBlocksExpanded"
 
 export const GlobalFileNames = {
 	apiConversationHistory: "api_conversation_history.json",
@@ -512,6 +515,8 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 							await this.updateGlobalState("lmStudioModelId", lmStudioModelId)
 							await this.updateGlobalState("lmStudioBaseUrl", lmStudioBaseUrl)
 							await this.updateGlobalState("anthropicBaseUrl", anthropicBaseUrl)
+							await this.updateGlobalState("anthropicThinking", message.apiConfiguration.anthropicThinking)
+							await this.updateGlobalState("maxTokens", message.apiConfiguration.maxTokens)
 							await this.storeSecret("geminiApiKey", geminiApiKey)
 							await this.storeSecret("openAiNativeApiKey", openAiNativeApiKey)
 							await this.storeSecret("deepSeekApiKey", deepSeekApiKey)
@@ -827,6 +832,11 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 							"workbench.action.openSettings",
 							`@ext:saoudrizwan.claude-dev ${settingsFilter}`.trim(), // trim whitespace if no settings filter
 						)
+						break
+					}
+					case "updateReasoningBlocksExpanded": {
+						await this.updateGlobalState("reasoningBlocksExpanded", message.expanded)
+						await this.postStateToWebview()
 						break
 					}
 					// Add more switch case statements here as more webview message commands
@@ -1594,6 +1604,7 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 			userInfo,
 			authToken,
 			mcpMarketplaceEnabled,
+			reasoningBlocksExpanded,
 		} = await this.getState()
 
 		return {
@@ -1613,6 +1624,7 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 			isLoggedIn: !!authToken,
 			userInfo,
 			mcpMarketplaceEnabled,
+			reasoningBlocksExpanded,
 		}
 	}
 
@@ -1691,6 +1703,8 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 			lmStudioModelId,
 			lmStudioBaseUrl,
 			anthropicBaseUrl,
+			anthropicThinking,
+			maxTokens,
 			geminiApiKey,
 			openAiNativeApiKey,
 			deepSeekApiKey,
@@ -1742,6 +1756,8 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 			this.getGlobalState("lmStudioModelId") as Promise<string | undefined>,
 			this.getGlobalState("lmStudioBaseUrl") as Promise<string | undefined>,
 			this.getGlobalState("anthropicBaseUrl") as Promise<string | undefined>,
+			this.getGlobalState("anthropicThinking") as Promise<any | undefined>,
+			this.getGlobalState("maxTokens") as Promise<number | undefined>,
 			this.getSecret("geminiApiKey") as Promise<string | undefined>,
 			this.getSecret("openAiNativeApiKey") as Promise<string | undefined>,
 			this.getSecret("deepSeekApiKey") as Promise<string | undefined>,
@@ -1816,6 +1832,8 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 				lmStudioModelId,
 				lmStudioBaseUrl,
 				anthropicBaseUrl,
+				anthropicThinking,
+				maxTokens,
 				geminiApiKey,
 				openAiNativeApiKey,
 				deepSeekApiKey,
@@ -1847,6 +1865,7 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 			previousModeModelId,
 			previousModeModelInfo,
 			mcpMarketplaceEnabled,
+			reasoningBlocksExpanded: (await this.getGlobalState("reasoningBlocksExpanded")) as boolean | undefined,
 		}
 	}
 
