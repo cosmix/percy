@@ -1,1 +1,1 @@
-Percy is a fork of Cline.
+Percy is a fork of Percy.

@@ -1,9 +1,9 @@
 import * as vscode from "vscode"
-import { ClineProvider } from "../core/webview/ClineProvider"
-import { ClineAPI } from "./cline"
+import { PercyProvider } from "../core/webview/PercyProvider"
+import { PercyAPI } from "./percy"
 
-export function createClineAPI(outputChannel: vscode.OutputChannel, sidebarProvider: ClineProvider): ClineAPI {
-	const api: ClineAPI = {
+export function createPercyAPI(outputChannel: vscode.OutputChannel, sidebarProvider: PercyProvider): PercyAPI {
+	const api: PercyAPI = {
 		setCustomInstructions: async (value: string) => {
 			await sidebarProvider.updateCustomInstructions(value)
 			outputChannel.appendLine("Custom instructions set")

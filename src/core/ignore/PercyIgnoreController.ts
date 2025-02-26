@@ -8,10 +8,10 @@ export const LOCK_TEXT_SYMBOL = "\u{1F512}"
 
 /**
  * Controls LLM access to files by enforcing ignore patterns.
- * Designed to be instantiated once in Cline.ts and passed to file manipulation services.
+ * Designed to be instantiated once in Percy.ts and passed to file manipulation services.
  * Uses the 'ignore' library to support standard .gitignore syntax in .clineignore files.
  */
-export class ClineIgnoreController {
+export class PercyIgnoreController {
 	private cwd: string
 	private ignoreInstance: Ignore
 	private disposables: vscode.Disposable[] = []
@@ -30,7 +30,7 @@ export class ClineIgnoreController {
 	 * Must be called after construction and before using the controller
 	 */
 	async initialize(): Promise<void> {
-		await this.loadClineIgnore()
+		await this.loadPercyIgnore()
 	}
 
 	/**
@@ -43,13 +43,13 @@ export class ClineIgnoreController {
 		// Watch for changes and updates
 		this.disposables.push(
 			fileWatcher.onDidChange(() => {
-				this.loadClineIgnore()
+				this.loadPercyIgnore()
 			}),
 			fileWatcher.onDidCreate(() => {
-				this.loadClineIgnore()
+				this.loadPercyIgnore()
 			}),
 			fileWatcher.onDidDelete(() => {
-				this.loadClineIgnore()
+				this.loadPercyIgnore()
 			}),
 		)
 
@@ -60,7 +60,7 @@ export class ClineIgnoreController {
 	/**
 	 * Load custom patterns from .clineignore if it exists
 	 */
-	private async loadClineIgnore(): Promise<void> {
+	private async loadPercyIgnore(): Promise<void> {
 		try {
 			// Reset ignore instance to prevent duplicate patterns
 			this.ignoreInstance = ignore()

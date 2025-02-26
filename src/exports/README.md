@@ -1,19 +1,19 @@
-# Cline API
+# Percy API
 
-The Cline extension exposes an API that can be used by other extensions. To use this API in your extension:
+The Percy extension exposes an API that can be used by other extensions. This API may be backwards compatible to Percy, the upstream project Percy was forked from. To use this API in your extension:
 
-1. Copy `src/extension-api/cline.d.ts` to your extension's source directory.
-2. Include `cline.d.ts` in your extension's compilation.
+1. Copy `src/extension-api/percy.d.ts` to your extension's source directory.
+2. Include `percy.d.ts` in your extension's compilation.
 3. Get access to the API with the following code:
 
     ```ts
-    const clineExtension = vscode.extensions.getExtension<ClineAPI>("saoudrizwan.claude-dev")
+    const percyExtension = vscode.extensions.getExtension<PercyAPI>("org.cosmix.percy")
 
-    if (!clineExtension?.isActive) {
-    	throw new Error("Cline extension is not activated")
+    if (!percyExtension?.isActive) {
+    	throw new Error("Percy extension is not activated")
     }
 
-    const cline = clineExtension.exports
+    const cline = percyExtension.exports
 
     if (cline) {
     	// Now you can use the API
@@ -26,7 +26,7 @@ The Cline extension exposes an API that can be used by other extensions. To use 
     	console.log("Current custom instructions:", instructions)
 
     	// Start a new task with an initial message
-    	await cline.startNewTask("Hello, Cline! Let's make a new project...")
+    	await cline.startNewTask("Hello, Percy! Let's make a new project...")
 
     	// Start a new task with an initial message and images
     	await cline.startNewTask("Use this design language", ["data:image/webp;base64,..."])
@@ -40,16 +40,16 @@ The Cline extension exposes an API that can be used by other extensions. To use 
     	// Simulate pressing the secondary button in the chat interface (e.g. 'Reject')
     	await cline.pressSecondaryButton()
     } else {
-    	console.error("Cline API is not available")
+    	console.error("Percy API is not available")
     }
     ```
 
-    **Note:** To ensure that the `saoudrizwan.claude-dev` extension is activated before your extension, add it to the `extensionDependencies` in your `package.json`:
+    **Note:** To ensure that the `org.cosmix.percy` extension is activated before your extension, add it to the `extensionDependencies` in your `package.json`:
 
     ```json
     "extensionDependencies": [
-        "saoudrizwan.claude-dev"
+        "org.cosmix.percy"
     ]
     ```
 
-For detailed information on the available methods and their usage, refer to the `cline.d.ts` file.
+For detailed information on the available methods and their usage, refer to the `percy.d.ts` file.

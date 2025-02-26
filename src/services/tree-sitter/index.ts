@@ -3,12 +3,12 @@ import * as path from "path"
 import { listFiles } from "../glob/list-files"
 import { LanguageParser, loadRequiredLanguageParsers } from "./languageParser"
 import { fileExistsAtPath } from "../../utils/fs"
-import { ClineIgnoreController } from "../../core/ignore/ClineIgnoreController"
+import { PercyIgnoreController } from "../../core/ignore/PercyIgnoreController"
 
 // TODO: implement caching behavior to avoid having to keep analyzing project for new tasks.
 export async function parseSourceCodeForDefinitionsTopLevel(
 	dirPath: string,
-	clineIgnoreController?: ClineIgnoreController,
+	clineIgnoreController?: PercyIgnoreController,
 ): Promise<string> {
 	// check if the path exists
 	const dirExists = await fileExistsAtPath(path.resolve(dirPath))
@@ -109,7 +109,7 @@ This approach allows us to focus on the most relevant parts of the code (defined
 async function parseFile(
 	filePath: string,
 	languageParsers: LanguageParser,
-	clineIgnoreController?: ClineIgnoreController,
+	clineIgnoreController?: PercyIgnoreController,
 ): Promise<string | null> {
 	if (clineIgnoreController && !clineIgnoreController.validateAccess(filePath)) {
 		return null

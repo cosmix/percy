@@ -34,31 +34,31 @@ import {
 	BrowserAction,
 	BrowserActionResult,
 	browserActions,
-	ClineApiReqCancelReason,
-	ClineApiReqInfo,
-	ClineAsk,
-	ClineAskUseMcpServer,
-	ClineMessage,
-	ClineSay,
-	ClineSayBrowserAction,
-	ClineSayTool,
+	PercyApiReqCancelReason,
+	PercyApiReqInfo,
+	PercyAsk,
+	PercyAskUseMcpServer,
+	PercyMessage,
+	PercySay,
+	PercySayBrowserAction,
+	PercySayTool,
 	COMPLETION_RESULT_CHANGES_FLAG,
 } from "../shared/ExtensionMessage"
 import { getApiMetrics } from "../shared/getApiMetrics"
 import { HistoryItem } from "../shared/HistoryItem"
-import { ClineAskResponse, ClineCheckpointRestore } from "../shared/WebviewMessage"
+import { PercyAskResponse, PercyCheckpointRestore } from "../shared/WebviewMessage"
 import { calculateApiCost } from "../utils/cost"
 import { fileExistsAtPath } from "../utils/fs"
 import { arePathsEqual, getReadablePath } from "../utils/path"
 import { fixModelHtmlEscaping, removeInvalidChars } from "../utils/string"
 import { AssistantMessageContent, parseAssistantMessage, ToolParamName, ToolUseName } from "./assistant-message"
 import { constructNewFileContent } from "./assistant-message/diff"
-import { ClineIgnoreController, LOCK_TEXT_SYMBOL } from "./ignore/ClineIgnoreController"
+import { PercyIgnoreController, LOCK_TEXT_SYMBOL } from "./ignore/PercyIgnoreController"
 import { parseMentions } from "./mentions"
 import { formatResponse } from "./prompts/responses"
 import { addUserInstructions, SYSTEM_PROMPT } from "./prompts/system"
 import { getNextTruncationRange, getTruncatedMessages } from "./sliding-window"
-import { ClineProvider, GlobalFileNames } from "./webview/ClineProvider"
+import { PercyProvider, GlobalFileNames } from "./webview/PercyProvider"
 
 const cwd = vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath).at(0) ?? path.join(os.homedir(), "Desktop") // may or may not exist but fs checking existence would immediately ask for permission which would be bad UX, need to come up with a better solution
 
@@ -67,7 +67,7 @@ type UserContent = Array<
 	Anthropic.TextBlockParam | Anthropic.ImageBlockParam | Anthropic.ToolUseBlockParam | Anthropic.ToolResultBlockParam
 >
 
-export class Cline {
+export class Percy {
 	readonly taskId: string
 	api: ApiHandler
 	private terminalManager: TerminalManager
@@ -79,15 +79,15 @@ export class Cline {
 	private browserSettings: BrowserSettings
 	private chatSettings: ChatSettings
 	apiConversationHistory: Anthropic.MessageParam[] = []
-	clineMessages: ClineMessage[] = []
-	private clineIgnoreController: ClineIgnoreController
-	private askResponse?: ClineAskResponse
+	clineMessages: PercyMessage[] = []
+	private clineIgnoreController: PercyIgnoreController
+	private askResponse?: PercyAskResponse
 	private askResponseText?: string
 	private askResponseImages?: string[]
 	private lastMessageTs?: number
 	private consecutiveAutoApprovedRequestsCount: number = 0
 	private consecutiveMistakeCount: number = 0
-	private providerRef: WeakRef<ClineProvider>
+	private providerRef: WeakRef<PercyProvider>
 	private abort: boolean = false
 	didFinishAbortingStream = false
 	abandoned = false
@@ -114,7 +114,7 @@ export class Cline {
 	private didAutomaticallyRetryFailedApiRequest = false
 
 	constructor(
-		provider: ClineProvider,
+		provider: PercyProvider,
 		apiConfiguration: ApiConfiguration,
 		autoApprovalSettings: AutoApprovalSettings,
 		browserSettings: BrowserSettings,
@@ -124,9 +124,9 @@ export class Cline {
 		images?: string[],
 		historyItem?: HistoryItem,
 	) {
-		this.clineIgnoreController = new ClineIgnoreController(cwd)
+		this.clineIgnoreController = new PercyIgnoreController(cwd)
 		this.clineIgnoreController.initialize().catch((error) => {
-			console.error("Failed to initialize ClineIgnoreController:", error)
+			console.error("Failed to initialize PercyIgnoreController:", error)
 		})
 		this.providerRef = new WeakRef(provider)
 		this.api = buildApiHandler(apiConfiguration)
@@ -200,7 +200,7 @@ export class Cline {
 		}
 	}
 
-	private async getSavedClineMessages(): Promise<ClineMessage[]> {
+	private async getSavedPercyMessages(): Promise<PercyMessage[]> {
 		const filePath = path.join(await this.ensureTaskDirectoryExists(), GlobalFileNames.uiMessages)
 		if (await fileExistsAtPath(filePath)) {
 			return JSON.parse(await fs.readFile(filePath, "utf8"))
@@ -216,21 +216,21 @@ export class Cline {
 		return []
 	}
 
-	private async addToClineMessages(message: ClineMessage) {
+	private async addToPercyMessages(message: PercyMessage) {
 		// these values allow us to reconstruct the conversation history at the time this cline message was created
 		// it's important that apiConversationHistory is initialized before we add cline messages
 		message.conversationHistoryIndex = this.apiConversationHistory.length - 1 // NOTE: this is the index of the last added message which is the user message, and once the clinemessages have been presented we update the apiconversationhistory with the completed assistant message. This means when resetting to a message, we need to +1 this index to get the correct assistant message that this tool use corresponds to
 		message.conversationHistoryDeletedRange = this.conversationHistoryDeletedRange
 		this.clineMessages.push(message)
-		await this.saveClineMessages()
+		await this.savePercyMessages()
 	}
 
-	private async overwriteClineMessages(newMessages: ClineMessage[]) {
+	private async overwritePercyMessages(newMessages: PercyMessage[]) {
 		this.clineMessages = newMessages
-		await this.saveClineMessages()
+		await this.savePercyMessages()
 	}
 
-	private async saveClineMessages() {
+	private async savePercyMessages() {
 		try {
 			const taskDir = await this.ensureTaskDirectoryExists()
 			const filePath = path.join(taskDir, GlobalFileNames.uiMessages)
@@ -268,7 +268,7 @@ export class Cline {
 		}
 	}
 
-	async restoreCheckpoint(messageTs: number, restoreType: ClineCheckpointRestore) {
+	async restoreCheckpoint(messageTs: number, restoreType: PercyCheckpointRestore) {
 		const messageIndex = this.clineMessages.findIndex((m) => m.ts === messageTs)
 		const message = this.clineMessages[messageIndex]
 		if (!message) {
@@ -323,8 +323,8 @@ export class Cline {
 					const deletedMessages = this.clineMessages.slice(messageIndex + 1)
 					const deletedApiReqsMetrics = getApiMetrics(combineApiRequests(combineCommandSequences(deletedMessages)))
 
-					const newClineMessages = this.clineMessages.slice(0, messageIndex + 1)
-					await this.overwriteClineMessages(newClineMessages) // calls saveClineMessages which saves historyItem
+					const newPercyMessages = this.clineMessages.slice(0, messageIndex + 1)
+					await this.overwritePercyMessages(newPercyMessages) // calls savePercyMessages which saves historyItem
 
 					await this.say(
 						"deleted_api_reqs",
@@ -334,7 +334,7 @@ export class Cline {
 							cacheWrites: deletedApiReqsMetrics.totalCacheWrites,
 							cacheReads: deletedApiReqsMetrics.totalCacheReads,
 							cost: deletedApiReqsMetrics.totalCost,
-						} satisfies ClineApiReqInfo),
+						} satisfies PercyApiReqInfo),
 					)
 					break
 				case "workspace":
@@ -365,7 +365,7 @@ export class Cline {
 				})
 			}
 
-			await this.saveClineMessages()
+			await this.savePercyMessages()
 
 			await this.providerRef.deref()?.postMessageToWebview({ type: "relinquishControl" })
 
@@ -536,17 +536,17 @@ export class Cline {
 
 	// partial has three valid states true (partial message), false (completion of partial message), undefined (individual complete message)
 	async ask(
-		type: ClineAsk,
+		type: PercyAsk,
 		text?: string,
 		partial?: boolean,
 	): Promise<{
-		response: ClineAskResponse
+		response: PercyAskResponse
 		text?: string
 		images?: string[]
 	}> {
-		// If this Cline instance was aborted by the provider, then the only thing keeping us alive is a promise still running in the background, in which case we don't want to send its result to the webview as it is attached to a new instance of Cline now. So we can safely ignore the result of any active promises, and this class will be deallocated. (Although we set Cline = undefined in provider, that simply removes the reference to this instance, but the instance is still alive until this promise resolves or rejects.)
+		// If this Percy instance was aborted by the provider, then the only thing keeping us alive is a promise still running in the background, in which case we don't want to send its result to the webview as it is attached to a new instance of Percy now. So we can safely ignore the result of any active promises, and this class will be deallocated. (Although we set Percy = undefined in provider, that simply removes the reference to this instance, but the instance is still alive until this promise resolves or rejects.)
 		if (this.abort) {
-			throw new Error("Cline instance aborted")
+			throw new Error("Percy instance aborted")
 		}
 		let askTs: number
 		if (partial !== undefined) {
@@ -559,7 +559,7 @@ export class Cline {
 					lastMessage.text = text
 					lastMessage.partial = partial
 					// todo be more efficient about saving and posting only new data or one whole message at a time so ignore partial for saves, and only post parts of partial message instead of whole array in new listener
-					// await this.saveClineMessages()
+					// await this.savePercyMessages()
 					// await this.providerRef.deref()?.postStateToWebview()
 					await this.providerRef.deref()?.postMessageToWebview({
 						type: "partialMessage",
@@ -573,7 +573,7 @@ export class Cline {
 					// this.askResponseImages = undefined
 					askTs = Date.now()
 					this.lastMessageTs = askTs
-					await this.addToClineMessages({
+					await this.addToPercyMessages({
 						ts: askTs,
 						type: "ask",
 						ask: type,
@@ -602,7 +602,7 @@ export class Cline {
 					// lastMessage.ts = askTs
 					lastMessage.text = text
 					lastMessage.partial = false
-					await this.saveClineMessages()
+					await this.savePercyMessages()
 					// await this.providerRef.deref()?.postStateToWebview()
 					await this.providerRef.deref()?.postMessageToWebview({
 						type: "partialMessage",
@@ -615,7 +615,7 @@ export class Cline {
 					this.askResponseImages = undefined
 					askTs = Date.now()
 					this.lastMessageTs = askTs
-					await this.addToClineMessages({
+					await this.addToPercyMessages({
 						ts: askTs,
 						type: "ask",
 						ask: type,
@@ -632,7 +632,7 @@ export class Cline {
 			this.askResponseImages = undefined
 			askTs = Date.now()
 			this.lastMessageTs = askTs
-			await this.addToClineMessages({
+			await this.addToPercyMessages({
 				ts: askTs,
 				type: "ask",
 				ask: type,
@@ -656,15 +656,15 @@ export class Cline {
 		return result
 	}
 
-	async handleWebviewAskResponse(askResponse: ClineAskResponse, text?: string, images?: string[]) {
+	async handleWebviewAskResponse(askResponse: PercyAskResponse, text?: string, images?: string[]) {
 		this.askResponse = askResponse
 		this.askResponseText = text
 		this.askResponseImages = images
 	}
 
-	async say(type: ClineSay, text?: string, images?: string[], partial?: boolean): Promise<undefined> {
+	async say(type: PercySay, text?: string, images?: string[], partial?: boolean): Promise<undefined> {
 		if (this.abort) {
-			throw new Error("Cline instance aborted")
+			throw new Error("Percy instance aborted")
 		}
 
 		if (partial !== undefined) {
@@ -685,7 +685,7 @@ export class Cline {
 					// this is a new partial message, so add it with partial state
 					const sayTs = Date.now()
 					this.lastMessageTs = sayTs
-					await this.addToClineMessages({
+					await this.addToPercyMessages({
 						ts: sayTs,
 						type: "say",
 						say: type,
@@ -706,7 +706,7 @@ export class Cline {
 					lastMessage.partial = false
 
 					// instead of streaming partialMessage events, we do a save and post like normal to persist to disk
-					await this.saveClineMessages()
+					await this.savePercyMessages()
 					// await this.providerRef.deref()?.postStateToWebview()
 					await this.providerRef.deref()?.postMessageToWebview({
 						type: "partialMessage",
@@ -716,7 +716,7 @@ export class Cline {
 					// this is a new partial=false message, so add it like normal
 					const sayTs = Date.now()
 					this.lastMessageTs = sayTs
-					await this.addToClineMessages({
+					await this.addToPercyMessages({
 						ts: sayTs,
 						type: "say",
 						say: type,
@@ -730,7 +730,7 @@ export class Cline {
 			// this is a new non-partial message, so add it like normal
 			const sayTs = Date.now()
 			this.lastMessageTs = sayTs
-			await this.addToClineMessages({
+			await this.addToPercyMessages({
 				ts: sayTs,
 				type: "say",
 				say: type,
@@ -744,18 +744,18 @@ export class Cline {
 	async sayAndCreateMissingParamError(toolName: ToolUseName, paramName: string, relPath?: string) {
 		await this.say(
 			"error",
-			`Cline tried to use ${toolName}${
+			`Percy tried to use ${toolName}${
 				relPath ? ` for '${relPath.toPosix()}'` : ""
 			} without value for required parameter '${paramName}'. Retrying...`,
 		)
 		return formatResponse.toolError(formatResponse.missingToolParameterError(paramName))
 	}
 
-	async removeLastPartialMessageIfExistsWithType(type: "ask" | "say", askOrSay: ClineAsk | ClineSay) {
+	async removeLastPartialMessageIfExistsWithType(type: "ask" | "say", askOrSay: PercyAsk | PercySay) {
 		const lastMessage = this.clineMessages.at(-1)
 		if (lastMessage?.partial && lastMessage.type === type && (lastMessage.ask === askOrSay || lastMessage.say === askOrSay)) {
 			this.clineMessages.pop()
-			await this.saveClineMessages()
+			await this.savePercyMessages()
 			await this.providerRef.deref()?.postStateToWebview()
 		}
 	}
@@ -764,7 +764,7 @@ export class Cline {
 
 	private async startTask(task?: string, images?: string[]): Promise<void> {
 		// conversationHistory (for API) and clineMessages (for webview) need to be in sync
-		// if the extension process were killed, then on restart the clineMessages might not be empty, so we need to set it to [] when we create a new Cline client (otherwise webview would show stale messages from previous session)
+		// if the extension process were killed, then on restart the clineMessages might not be empty, so we need to set it to [] when we create a new Percy client (otherwise webview would show stale messages from previous session)
 		this.clineMessages = []
 		this.apiConversationHistory = []
 
@@ -794,54 +794,54 @@ export class Cline {
 		// 	this.checkpointTrackerErrorMessage = "Checkpoints are only available for new tasks"
 		// }
 
-		const modifiedClineMessages = await this.getSavedClineMessages()
+		const modifiedPercyMessages = await this.getSavedPercyMessages()
 
 		// Remove any resume messages that may have been added before
 		const lastRelevantMessageIndex = findLastIndex(
-			modifiedClineMessages,
+			modifiedPercyMessages,
 			(m) => !(m.ask === "resume_task" || m.ask === "resume_completed_task"),
 		)
 		if (lastRelevantMessageIndex !== -1) {
-			modifiedClineMessages.splice(lastRelevantMessageIndex + 1)
+			modifiedPercyMessages.splice(lastRelevantMessageIndex + 1)
 		}
 
 		// since we don't use api_req_finished anymore, we need to check if the last api_req_started has a cost value, if it doesn't and no cancellation reason to present, then we remove it since it indicates an api request without any partial content streamed
 		const lastApiReqStartedIndex = findLastIndex(
-			modifiedClineMessages,
+			modifiedPercyMessages,
 			(m) => m.type === "say" && m.say === "api_req_started",
 		)
 		if (lastApiReqStartedIndex !== -1) {
-			const lastApiReqStarted = modifiedClineMessages[lastApiReqStartedIndex]
-			const { cost, cancelReason }: ClineApiReqInfo = JSON.parse(lastApiReqStarted.text || "{}")
+			const lastApiReqStarted = modifiedPercyMessages[lastApiReqStartedIndex]
+			const { cost, cancelReason }: PercyApiReqInfo = JSON.parse(lastApiReqStarted.text || "{}")
 			if (cost === undefined && cancelReason === undefined) {
-				modifiedClineMessages.splice(lastApiReqStartedIndex, 1)
+				modifiedPercyMessages.splice(lastApiReqStartedIndex, 1)
 			}
 		}
 
-		await this.overwriteClineMessages(modifiedClineMessages)
-		this.clineMessages = await this.getSavedClineMessages()
+		await this.overwritePercyMessages(modifiedPercyMessages)
+		this.clineMessages = await this.getSavedPercyMessages()
 
 		// Now present the cline messages to the user and ask if they want to resume (NOTE: we ran into a bug before where the apiconversationhistory wouldnt be initialized when opening a old task, and it was because we were waiting for resume)
 		// This is important in case the user deletes messages without resuming the task first
 		this.apiConversationHistory = await this.getSavedApiConversationHistory()
 
-		const lastClineMessage = this.clineMessages
+		const lastPercyMessage = this.clineMessages
 			.slice()
 			.reverse()
 			.find((m) => !(m.ask === "resume_task" || m.ask === "resume_completed_task")) // could be multiple resume tasks
-		// const lastClineMessage = this.clineMessages[lastClineMessageIndex]
+		// const lastPercyMessage = this.clineMessages[lastPercyMessageIndex]
 		// could be a completion result with a command
-		// const secondLastClineMessage = this.clineMessages
+		// const secondLastPercyMessage = this.clineMessages
 		// 	.slice()
 		// 	.reverse()
 		// 	.find(
 		// 		(m, index) =>
-		// 			index !== lastClineMessageIndex && !(m.ask === "resume_task" || m.ask === "resume_completed_task")
+		// 			index !== lastPercyMessageIndex && !(m.ask === "resume_task" || m.ask === "resume_completed_task")
 		// 	)
-		// (lastClineMessage?.ask === "command" && secondLastClineMessage?.ask === "completion_result")
+		// (lastPercyMessage?.ask === "command" && secondLastPercyMessage?.ask === "completion_result")
 
-		let askType: ClineAsk
-		if (lastClineMessage?.ask === "completion_result") {
+		let askType: PercyAsk
+		if (lastPercyMessage?.ask === "completion_result") {
 			askType = "resume_completed_task"
 		} else {
 			askType = "resume_task"
@@ -986,7 +986,7 @@ export class Cline {
 		let newUserContent: UserContent = [...modifiedOldUserContent]
 
 		const agoText = (() => {
-			const timestamp = lastClineMessage?.ts ?? Date.now()
+			const timestamp = lastPercyMessage?.ts ?? Date.now()
 			const now = Date.now()
 			const diff = now - timestamp
 			const minutes = Math.floor(diff / 60000)
@@ -1005,7 +1005,7 @@ export class Cline {
 			return "just now"
 		})()
 
-		const wasRecent = lastClineMessage?.ts && Date.now() - lastClineMessage.ts < 30_000
+		const wasRecent = lastPercyMessage?.ts && Date.now() - lastPercyMessage.ts < 30_000
 
 		newUserContent.push({
 			type: "text",
@@ -1038,11 +1038,11 @@ export class Cline {
 		let nextUserContent = userContent
 		let includeFileDetails = true
 		while (!this.abort) {
-			const didEndLoop = await this.recursivelyMakeClineRequests(nextUserContent, includeFileDetails, isNewTask)
+			const didEndLoop = await this.recursivelyMakePercyRequests(nextUserContent, includeFileDetails, isNewTask)
 			includeFileDetails = false // we only need file details the first time
 
 			//  The way this agentic loop works is that cline will be given a task that he then calls tools to complete. unless there's an attempt_completion call, we keep responding back to him with his tool's responses until he either attempt_completion or does not use anymore tools. If he does not use anymore tools, we ask him to consider if he's completed the task and then call attempt_completion, otherwise proceed with completing the task.
-			// There is a MAX_REQUESTS_PER_TASK limit to prevent infinite requests, but Cline is prompted to finish the task as efficiently as he can.
+			// There is a MAX_REQUESTS_PER_TASK limit to prevent infinite requests, but Percy is prompted to finish the task as efficiently as he can.
 
 			//const totalCost = this.calculateApiCost(totalInputTokens, totalOutputTokens)
 			if (didEndLoop) {
@@ -1052,7 +1052,7 @@ export class Cline {
 			} else {
 				// this.say(
 				// 	"tool",
-				// 	"Cline responded with only text blocks but has not called attempt_completion yet. Forcing him to continue with task..."
+				// 	"Percy responded with only text blocks but has not called attempt_completion yet. Forcing him to continue with task..."
 				// )
 				nextUserContent = [
 					{
@@ -1091,7 +1091,7 @@ export class Cline {
 				const lastCheckpointMessage = findLast(this.clineMessages, (m) => m.say === "checkpoint_created")
 				if (lastCheckpointMessage) {
 					lastCheckpointMessage.lastCheckpointHash = commitHash
-					await this.saveClineMessages()
+					await this.savePercyMessages()
 				}
 			} else {
 				// For attempt_completion, find the last completion_result message and set its checkpoint hash. This will be used to present the 'see new changes' button
@@ -1101,7 +1101,7 @@ export class Cline {
 				)
 				if (lastCompletionResultMessage) {
 					lastCompletionResultMessage.lastCheckpointHash = commitHash
-					await this.saveClineMessages()
+					await this.savePercyMessages()
 				}
 			}
 
@@ -1136,7 +1136,7 @@ export class Cline {
 			// 	}
 			// }
 			// // Save the updated messages
-			// await this.saveClineMessages()
+			// await this.savePercyMessages()
 		}
 	}
 
@@ -1297,7 +1297,7 @@ export class Cline {
 		if (previousApiReqIndex >= 0) {
 			const previousRequest = this.clineMessages[previousApiReqIndex]
 			if (previousRequest && previousRequest.text) {
-				const { tokensIn, tokensOut, cacheWrites, cacheReads }: ClineApiReqInfo = JSON.parse(previousRequest.text)
+				const { tokensIn, tokensOut, cacheWrites, cacheReads }: PercyApiReqInfo = JSON.parse(previousRequest.text)
 				const totalTokens = (tokensIn || 0) + (tokensOut || 0) + (cacheWrites || 0) + (cacheReads || 0)
 				let contextWindow = this.api.getModel().info.contextWindow || 128_000
 				// FIXME: hack to get anyone using openai compatible with deepseek to have the proper context window instead of the default 128k. We need a way for the user to specify the context window for models they input through openai compatible
@@ -1332,7 +1332,7 @@ export class Cline {
 						this.conversationHistoryDeletedRange,
 						keep,
 					)
-					await this.saveClineMessages() // saves task history item which we use to keep track of conversation history deleted range
+					await this.savePercyMessages() // saves task history item which we use to keep track of conversation history deleted range
 					// await this.overwriteApiConversationHistory(truncatedMessages)
 				}
 			}
@@ -1385,7 +1385,7 @@ export class Cline {
 
 	async presentAssistantMessage() {
 		if (this.abort) {
-			throw new Error("Cline instance aborted")
+			throw new Error("Percy instance aborted")
 		}
 
 		if (this.presentAssistantMessageLocked) {
@@ -1560,7 +1560,7 @@ export class Cline {
 					}
 				}
 
-				const askApproval = async (type: ClineAsk, partialMessage?: string) => {
+				const askApproval = async (type: PercyAsk, partialMessage?: string) => {
 					const { response, text, images } = await this.ask(type, partialMessage, false)
 					if (response !== "yesButtonClicked") {
 						// User pressed reject button or responded with a message, which we treat as a rejection
@@ -1673,7 +1673,7 @@ export class Cline {
 									diff = removeInvalidChars(diff)
 								}
 
-								// open the editor if not done already.  This is to fix diff error when model provides correct search-replace text but Cline throws error
+								// open the editor if not done already.  This is to fix diff error when model provides correct search-replace text but Percy throws error
 								// because file is not open.
 								if (!this.diffViewProvider.isEditing) {
 									await this.diffViewProvider.open(relPath)
@@ -1724,7 +1724,7 @@ export class Cline {
 
 							newContent = newContent.trimEnd() // remove any trailing newlines, since it's automatically inserted by the editor
 
-							const sharedMessageProps: ClineSayTool = {
+							const sharedMessageProps: PercySayTool = {
 								tool: fileExists ? "editedExistingFile" : "newFileCreated",
 								path: getReadablePath(cwd, removeClosingTag("path", relPath)),
 								content: diff || content,
@@ -1796,7 +1796,7 @@ export class Cline {
 									// 		newContent,
 									// 	)
 									// : undefined,
-								} satisfies ClineSayTool)
+								} satisfies PercySayTool)
 
 								if (this.shouldAutoApproveTool(block.name)) {
 									this.removeLastPartialMessageIfExistsWithType("ask", "tool")
@@ -1808,7 +1808,7 @@ export class Cline {
 								} else {
 									// If auto-approval is enabled but this tool wasn't auto-approved, send notification
 									showNotificationForApprovalIfAutoApprovalEnabled(
-										`Cline wants to ${fileExists ? "edit" : "create"} ${path.basename(relPath)}`,
+										`Percy wants to ${fileExists ? "edit" : "create"} ${path.basename(relPath)}`,
 									)
 									this.removeLastPartialMessageIfExistsWithType("say", "tool")
 									// const didApprove = await askApproval("tool", completeMessage)
@@ -1854,7 +1854,7 @@ export class Cline {
 											tool: fileExists ? "editedExistingFile" : "newFileCreated",
 											path: getReadablePath(cwd, relPath),
 											diff: userEdits,
-										} satisfies ClineSayTool),
+										} satisfies PercySayTool),
 									)
 									pushToolResult(
 										`The user made the following updates to your content:\n\n${userEdits}\n\n` +
@@ -1903,7 +1903,7 @@ export class Cline {
 					}
 					case "read_file": {
 						const relPath: string | undefined = block.params.path
-						const sharedMessageProps: ClineSayTool = {
+						const sharedMessageProps: PercySayTool = {
 							tool: "readFile",
 							path: getReadablePath(cwd, removeClosingTag("path", relPath)),
 						}
@@ -1912,7 +1912,7 @@ export class Cline {
 								const partialMessage = JSON.stringify({
 									...sharedMessageProps,
 									content: undefined,
-								} satisfies ClineSayTool)
+								} satisfies PercySayTool)
 								if (this.shouldAutoApproveTool(block.name)) {
 									this.removeLastPartialMessageIfExistsWithType("ask", "tool")
 									await this.say("tool", partialMessage, undefined, block.partial)
@@ -1942,14 +1942,14 @@ export class Cline {
 								const completeMessage = JSON.stringify({
 									...sharedMessageProps,
 									content: absolutePath,
-								} satisfies ClineSayTool)
+								} satisfies PercySayTool)
 								if (this.shouldAutoApproveTool(block.name)) {
 									this.removeLastPartialMessageIfExistsWithType("ask", "tool")
 									await this.say("tool", completeMessage, undefined, false) // need to be sending partialValue bool, since undefined has its own purpose in that the message is treated neither as a partial or completion of a partial, but as a single complete message
 									this.consecutiveAutoApprovedRequestsCount++
 								} else {
 									showNotificationForApprovalIfAutoApprovalEnabled(
-										`Cline wants to read ${path.basename(absolutePath)}`,
+										`Percy wants to read ${path.basename(absolutePath)}`,
 									)
 									this.removeLastPartialMessageIfExistsWithType("say", "tool")
 									const didApprove = await askApproval("tool", completeMessage)
@@ -1973,7 +1973,7 @@ export class Cline {
 						const relDirPath: string | undefined = block.params.path
 						const recursiveRaw: string | undefined = block.params.recursive
 						const recursive = recursiveRaw?.toLowerCase() === "true"
-						const sharedMessageProps: ClineSayTool = {
+						const sharedMessageProps: PercySayTool = {
 							tool: !recursive ? "listFilesTopLevel" : "listFilesRecursive",
 							path: getReadablePath(cwd, removeClosingTag("path", relDirPath)),
 						}
@@ -1982,7 +1982,7 @@ export class Cline {
 								const partialMessage = JSON.stringify({
 									...sharedMessageProps,
 									content: "",
-								} satisfies ClineSayTool)
+								} satisfies PercySayTool)
 								if (this.shouldAutoApproveTool(block.name)) {
 									this.removeLastPartialMessageIfExistsWithType("ask", "tool")
 									await this.say("tool", partialMessage, undefined, block.partial)
@@ -2013,14 +2013,14 @@ export class Cline {
 								const completeMessage = JSON.stringify({
 									...sharedMessageProps,
 									content: result,
-								} satisfies ClineSayTool)
+								} satisfies PercySayTool)
 								if (this.shouldAutoApproveTool(block.name)) {
 									this.removeLastPartialMessageIfExistsWithType("ask", "tool")
 									await this.say("tool", completeMessage, undefined, false)
 									this.consecutiveAutoApprovedRequestsCount++
 								} else {
 									showNotificationForApprovalIfAutoApprovalEnabled(
-										`Cline wants to view directory ${path.basename(absolutePath)}/`,
+										`Percy wants to view directory ${path.basename(absolutePath)}/`,
 									)
 									this.removeLastPartialMessageIfExistsWithType("say", "tool")
 									const didApprove = await askApproval("tool", completeMessage)
@@ -2040,7 +2040,7 @@ export class Cline {
 					}
 					case "list_code_definition_names": {
 						const relDirPath: string | undefined = block.params.path
-						const sharedMessageProps: ClineSayTool = {
+						const sharedMessageProps: PercySayTool = {
 							tool: "listCodeDefinitionNames",
 							path: getReadablePath(cwd, removeClosingTag("path", relDirPath)),
 						}
@@ -2049,7 +2049,7 @@ export class Cline {
 								const partialMessage = JSON.stringify({
 									...sharedMessageProps,
 									content: "",
-								} satisfies ClineSayTool)
+								} satisfies PercySayTool)
 								if (this.shouldAutoApproveTool(block.name)) {
 									this.removeLastPartialMessageIfExistsWithType("ask", "tool")
 									await this.say("tool", partialMessage, undefined, block.partial)
@@ -2077,14 +2077,14 @@ export class Cline {
 								const completeMessage = JSON.stringify({
 									...sharedMessageProps,
 									content: result,
-								} satisfies ClineSayTool)
+								} satisfies PercySayTool)
 								if (this.shouldAutoApproveTool(block.name)) {
 									this.removeLastPartialMessageIfExistsWithType("ask", "tool")
 									await this.say("tool", completeMessage, undefined, false)
 									this.consecutiveAutoApprovedRequestsCount++
 								} else {
 									showNotificationForApprovalIfAutoApprovalEnabled(
-										`Cline wants to view source code definitions in ${path.basename(absolutePath)}/`,
+										`Percy wants to view source code definitions in ${path.basename(absolutePath)}/`,
 									)
 									this.removeLastPartialMessageIfExistsWithType("say", "tool")
 									const didApprove = await askApproval("tool", completeMessage)
@@ -2106,7 +2106,7 @@ export class Cline {
 						const relDirPath: string | undefined = block.params.path
 						const regex: string | undefined = block.params.regex
 						const filePattern: string | undefined = block.params.file_pattern
-						const sharedMessageProps: ClineSayTool = {
+						const sharedMessageProps: PercySayTool = {
 							tool: "searchFiles",
 							path: getReadablePath(cwd, removeClosingTag("path", relDirPath)),
 							regex: removeClosingTag("regex", regex),
@@ -2117,7 +2117,7 @@ export class Cline {
 								const partialMessage = JSON.stringify({
 									...sharedMessageProps,
 									content: "",
-								} satisfies ClineSayTool)
+								} satisfies PercySayTool)
 								if (this.shouldAutoApproveTool(block.name)) {
 									this.removeLastPartialMessageIfExistsWithType("ask", "tool")
 									await this.say("tool", partialMessage, undefined, block.partial)
@@ -2153,14 +2153,14 @@ export class Cline {
 								const completeMessage = JSON.stringify({
 									...sharedMessageProps,
 									content: results,
-								} satisfies ClineSayTool)
+								} satisfies PercySayTool)
 								if (this.shouldAutoApproveTool(block.name)) {
 									this.removeLastPartialMessageIfExistsWithType("ask", "tool")
 									await this.say("tool", completeMessage, undefined, false)
 									this.consecutiveAutoApprovedRequestsCount++
 								} else {
 									showNotificationForApprovalIfAutoApprovalEnabled(
-										`Cline wants to search files in ${path.basename(absolutePath)}/`,
+										`Percy wants to search files in ${path.basename(absolutePath)}/`,
 									)
 									this.removeLastPartialMessageIfExistsWithType("say", "tool")
 									const didApprove = await askApproval("tool", completeMessage)
@@ -2220,7 +2220,7 @@ export class Cline {
 											action: action as BrowserAction,
 											coordinate: removeClosingTag("coordinate", coordinate),
 											text: removeClosingTag("text", text),
-										} satisfies ClineSayBrowserAction),
+										} satisfies PercySayBrowserAction),
 										undefined,
 										block.partial,
 									)
@@ -2244,7 +2244,7 @@ export class Cline {
 										this.consecutiveAutoApprovedRequestsCount++
 									} else {
 										showNotificationForApprovalIfAutoApprovalEnabled(
-											`Cline wants to use a browser and launch ${url}`,
+											`Percy wants to use a browser and launch ${url}`,
 										)
 										this.removeLastPartialMessageIfExistsWithType("say", "browser_action_launch")
 										const didApprove = await askApproval("browser_action_launch", url)
@@ -2287,7 +2287,7 @@ export class Cline {
 											action: action as BrowserAction,
 											coordinate,
 											text,
-										} satisfies ClineSayBrowserAction),
+										} satisfies PercySayBrowserAction),
 										undefined,
 										false,
 									)
@@ -2402,7 +2402,7 @@ export class Cline {
 									didAutoApprove = true
 								} else {
 									showNotificationForApprovalIfAutoApprovalEnabled(
-										`Cline wants to execute a command: ${command}`,
+										`Percy wants to execute a command: ${command}`,
 									)
 									// this.removeLastPartialMessageIfExistsWithType("say", "command")
 									const didApprove = await askApproval(
@@ -2461,7 +2461,7 @@ export class Cline {
 									serverName: removeClosingTag("server_name", server_name),
 									toolName: removeClosingTag("tool_name", tool_name),
 									arguments: removeClosingTag("arguments", mcp_arguments),
-								} satisfies ClineAskUseMcpServer)
+								} satisfies PercyAskUseMcpServer)
 
 								if (this.shouldAutoApproveTool(block.name)) {
 									this.removeLastPartialMessageIfExistsWithType("ask", "use_mcp_server")
@@ -2499,7 +2499,7 @@ export class Cline {
 										this.consecutiveMistakeCount++
 										await this.say(
 											"error",
-											`Cline tried to use ${tool_name} with an invalid JSON argument. Retrying...`,
+											`Percy tried to use ${tool_name} with an invalid JSON argument. Retrying...`,
 										)
 										pushToolResult(
 											formatResponse.toolError(
@@ -2516,7 +2516,7 @@ export class Cline {
 									serverName: server_name,
 									toolName: tool_name,
 									arguments: mcp_arguments,
-								} satisfies ClineAskUseMcpServer)
+								} satisfies PercyAskUseMcpServer)
 
 								const isToolAutoApproved = this.providerRef
 									.deref()
@@ -2529,7 +2529,7 @@ export class Cline {
 									this.consecutiveAutoApprovedRequestsCount++
 								} else {
 									showNotificationForApprovalIfAutoApprovalEnabled(
-										`Cline wants to use ${tool_name} on ${server_name}`,
+										`Percy wants to use ${tool_name} on ${server_name}`,
 									)
 									this.removeLastPartialMessageIfExistsWithType("say", "use_mcp_server")
 									const didApprove = await askApproval("use_mcp_server", completeMessage)
@@ -2582,7 +2582,7 @@ export class Cline {
 									type: "access_mcp_resource",
 									serverName: removeClosingTag("server_name", server_name),
 									uri: removeClosingTag("uri", uri),
-								} satisfies ClineAskUseMcpServer)
+								} satisfies PercyAskUseMcpServer)
 
 								if (this.shouldAutoApproveTool(block.name)) {
 									this.removeLastPartialMessageIfExistsWithType("ask", "use_mcp_server")
@@ -2611,7 +2611,7 @@ export class Cline {
 									type: "access_mcp_resource",
 									serverName: server_name,
 									uri,
-								} satisfies ClineAskUseMcpServer)
+								} satisfies PercyAskUseMcpServer)
 
 								if (this.shouldAutoApproveTool(block.name)) {
 									this.removeLastPartialMessageIfExistsWithType("ask", "use_mcp_server")
@@ -2619,7 +2619,7 @@ export class Cline {
 									this.consecutiveAutoApprovedRequestsCount++
 								} else {
 									showNotificationForApprovalIfAutoApprovalEnabled(
-										`Cline wants to access ${uri} on ${server_name}`,
+										`Percy wants to access ${uri} on ${server_name}`,
 									)
 									this.removeLastPartialMessageIfExistsWithType("say", "use_mcp_server")
 									const didApprove = await askApproval("use_mcp_server", completeMessage)
@@ -2669,7 +2669,7 @@ export class Cline {
 
 								if (this.autoApprovalSettings.enabled && this.autoApprovalSettings.enableNotifications) {
 									showSystemNotification({
-										subtitle: "Cline has a question...",
+										subtitle: "Percy has a question...",
 										message: question.replace(/\n/g, " "),
 									})
 								}
@@ -2705,7 +2705,7 @@ export class Cline {
 
 								// if (this.autoApprovalSettings.enabled && this.autoApprovalSettings.enableNotifications) {
 								// 	showSystemNotification({
-								// 		subtitle: "Cline has a response...",
+								// 		subtitle: "Percy has a response...",
 								// 		message: response.replace(/\n/g, " "),
 								// 	})
 								// }
@@ -2783,7 +2783,7 @@ export class Cline {
 							) {
 								lastCompletionResultMessage.text += COMPLETION_RESULT_CHANGES_FLAG
 							}
-							await this.saveClineMessages()
+							await this.savePercyMessages()
 						}
 
 						try {
@@ -2940,27 +2940,27 @@ export class Cline {
 		}
 	}
 
-	async recursivelyMakeClineRequests(
+	async recursivelyMakePercyRequests(
 		userContent: UserContent,
 		includeFileDetails: boolean = false,
 		isNewTask: boolean = false,
 	): Promise<boolean> {
 		if (this.abort) {
-			throw new Error("Cline instance aborted")
+			throw new Error("Percy instance aborted")
 		}
 
 		if (this.consecutiveMistakeCount >= 3) {
 			if (this.autoApprovalSettings.enabled && this.autoApprovalSettings.enableNotifications) {
 				showSystemNotification({
 					subtitle: "Error",
-					message: "Cline is having trouble. Would you like to continue the task?",
+					message: "Percy is having trouble. Would you like to continue the task?",
 				})
 			}
 			const { response, text, images } = await this.ask(
 				"mistake_limit_reached",
 				this.api.getModel().id.includes("claude")
 					? `This may indicate a failure in his thought process or inability to use a tool properly, which can be mitigated with some user guidance (e.g. "Try breaking down the task into smaller steps").`
-					: "Cline uses complex prompts and iterative task execution that may be challenging for less capable models. For best results, it's recommended to use Claude 3.5 Sonnet for its advanced agentic coding capabilities.",
+					: "Percy uses complex prompts and iterative task execution that may be challenging for less capable models. For best results, it's recommended to use Claude 3.5 Sonnet for its advanced agentic coding capabilities.",
 			)
 			if (response === "messageResponse") {
 				userContent.push(
@@ -2983,12 +2983,12 @@ export class Cline {
 			if (this.autoApprovalSettings.enableNotifications) {
 				showSystemNotification({
 					subtitle: "Max Requests Reached",
-					message: `Cline has auto-approved ${this.autoApprovalSettings.maxRequests.toString()} API requests.`,
+					message: `Percy has auto-approved ${this.autoApprovalSettings.maxRequests.toString()} API requests.`,
 				})
 			}
 			await this.ask(
 				"auto_approval_max_req_reached",
-				`Cline has auto-approved ${this.autoApprovalSettings.maxRequests.toString()} API requests. Would you like to reset the count and proceed with the task?`,
+				`Percy has auto-approved ${this.autoApprovalSettings.maxRequests.toString()} API requests. Would you like to reset the count and proceed with the task?`,
 			)
 			// if we get past the promise it means the user approved and did not start a new task
 			this.consecutiveAutoApprovedRequestsCount = 0
@@ -3022,7 +3022,7 @@ export class Cline {
 			} catch (error) {
 				const errorMessage = error instanceof Error ? error.message : "Unknown error"
 				console.error("Failed to initialize checkpoint tracker:", errorMessage)
-				this.checkpointTrackerErrorMessage = errorMessage // will be displayed right away since we saveClineMessages next which posts state to webview
+				this.checkpointTrackerErrorMessage = errorMessage // will be displayed right away since we savePercyMessages next which posts state to webview
 			}
 		}
 
@@ -3032,7 +3032,7 @@ export class Cline {
 			const lastCheckpointMessage = findLast(this.clineMessages, (m) => m.say === "checkpoint_created")
 			if (lastCheckpointMessage) {
 				lastCheckpointMessage.lastCheckpointHash = commitHash
-				await this.saveClineMessages()
+				await this.savePercyMessages()
 			}
 		}
 
@@ -3050,8 +3050,8 @@ export class Cline {
 		const lastApiReqIndex = findLastIndex(this.clineMessages, (m) => m.say === "api_req_started")
 		this.clineMessages[lastApiReqIndex].text = JSON.stringify({
 			request: userContent.map((block) => formatContentBlockToMarkdown(block)).join("\n\n"),
-		} satisfies ClineApiReqInfo)
-		await this.saveClineMessages()
+		} satisfies PercyApiReqInfo)
+		await this.savePercyMessages()
 		await this.providerRef.deref()?.postStateToWebview()
 
 		try {
@@ -3064,7 +3064,7 @@ export class Cline {
 			// update api_req_started. we can't use api_req_finished anymore since it's a unique case where it could come after a streaming message (ie in the middle of being updated or executed)
 			// fortunately api_req_finished was always parsed out for the gui anyways, so it remains solely for legacy purposes to keep track of prices in tasks from history
 			// (it's worth removing a few months from now)
-			const updateApiReqMsg = (cancelReason?: ClineApiReqCancelReason, streamingFailedMessage?: string) => {
+			const updateApiReqMsg = (cancelReason?: PercyApiReqCancelReason, streamingFailedMessage?: string) => {
 				this.clineMessages[lastApiReqIndex].text = JSON.stringify({
 					...JSON.parse(this.clineMessages[lastApiReqIndex].text || "{}"),
 					tokensIn: inputTokens,
@@ -3076,10 +3076,10 @@ export class Cline {
 						calculateApiCost(this.api.getModel().info, inputTokens, outputTokens, cacheWriteTokens, cacheReadTokens),
 					cancelReason,
 					streamingFailedMessage,
-				} satisfies ClineApiReqInfo)
+				} satisfies PercyApiReqInfo)
 			}
 
-			const abortStream = async (cancelReason: ClineApiReqCancelReason, streamingFailedMessage?: string) => {
+			const abortStream = async (cancelReason: PercyApiReqCancelReason, streamingFailedMessage?: string) => {
 				if (this.diffViewProvider.isEditing) {
 					await this.diffViewProvider.revertChanges() // closes diff view
 				}
@@ -3091,7 +3091,7 @@ export class Cline {
 					lastMessage.partial = false
 					// instead of streaming partialMessage events, we do a save and post like normal to persist to disk
 					console.log("updating partial message", lastMessage)
-					// await this.saveClineMessages()
+					// await this.savePercyMessages()
 				}
 
 				// Let assistant know their response was interrupted for when task is resumed
@@ -3113,7 +3113,7 @@ export class Cline {
 
 				// update api_req_started to have cancelled and cost, so that we can display the cost of the partial stream
 				updateApiReqMsg(cancelReason, streamingFailedMessage)
-				await this.saveClineMessages()
+				await this.savePercyMessages()
 
 				// signals to provider that it can retrieve the saved messages from disk, as abortTask can not be awaited on in nature
 				this.didFinishAbortingStream = true
@@ -3204,7 +3204,7 @@ export class Cline {
 					await abortStream("streaming_failed", errorMessage)
 					const history = await this.providerRef.deref()?.getTaskWithId(this.taskId)
 					if (history) {
-						await this.providerRef.deref()?.initClineWithHistoryItem(history.historyItem)
+						await this.providerRef.deref()?.initPercyWithHistoryItem(history.historyItem)
 						// await this.providerRef.deref()?.postStateToWebview()
 					}
 				}
@@ -3214,7 +3214,7 @@ export class Cline {
 
 			// need to call here in case the stream was aborted
 			if (this.abort) {
-				throw new Error("Cline instance aborted")
+				throw new Error("Percy instance aborted")
 			}
 
 			this.didCompleteReadingStream = true
@@ -3231,7 +3231,7 @@ export class Cline {
 			}
 
 			updateApiReqMsg()
-			await this.saveClineMessages()
+			await this.savePercyMessages()
 			await this.providerRef.deref()?.postStateToWebview()
 
 			// now add to apiconversationhistory
@@ -3265,7 +3265,7 @@ export class Cline {
 					this.consecutiveMistakeCount++
 				}
 
-				const recDidEndLoop = await this.recursivelyMakeClineRequests(this.userMessageContent)
+				const recDidEndLoop = await this.recursivelyMakePercyRequests(this.userMessageContent)
 				didEndLoop = recDidEndLoop
 			} else {
 				// if there's no assistant_responses, that means we got no text or tool_use content blocks from API which we should assume is an error

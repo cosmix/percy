@@ -5,7 +5,6 @@ import ChatView from "./components/chat/ChatView"
 import HistoryView from "./components/history/HistoryView"
 import SettingsView from "./components/settings/SettingsView"
 import WelcomeView from "./components/welcome/WelcomeView"
-import AccountView from "./components/account/AccountView"
 import { ExtensionStateContextProvider, useExtensionState } from "./context/ExtensionStateContext"
 import { vscode } from "./utils/vscode"
 import McpView from "./components/mcp/McpView"
@@ -41,12 +40,6 @@ const AppContent = () => {
 						setShowMcp(true)
 						setShowAccount(false)
 						break
-					case "accountLoginClicked":
-						setShowSettings(false)
-						setShowHistory(false)
-						setShowMcp(false)
-						setShowAccount(true)
-						break
 					case "chatButtonClicked":
 						setShowSettings(false)
 						setShowHistory(false)
@@ -80,7 +73,6 @@ const AppContent = () => {
 					{showSettings && <SettingsView onDone={() => setShowSettings(false)} />}
 					{showHistory && <HistoryView onDone={() => setShowHistory(false)} />}
 					{showMcp && <McpView onDone={() => setShowMcp(false)} />}
-					{showAccount && <AccountView onDone={() => setShowAccount(false)} />}
 					{/* Do not conditionally load ChatView, it's expensive and there's state we don't want to lose (user input, disableInput, askResponse promise, etc.) */}
 					<ChatView
 						showHistoryView={() => {

@@ -1,13 +1,13 @@
-import { ClineIgnoreController } from "./ClineIgnoreController"
+import { PercyIgnoreController } from "./PercyIgnoreController"
 import fs from "fs/promises"
 import path from "path"
 import os from "os"
 import { after, beforeEach, describe, it } from "mocha"
 import "should"
 
-describe("ClineIgnoreController", () => {
+describe("PercyIgnoreController", () => {
 	let tempDir: string
-	let controller: ClineIgnoreController
+	let controller: PercyIgnoreController
 
 	beforeEach(async () => {
 		// Create a temp directory for testing
@@ -22,7 +22,7 @@ describe("ClineIgnoreController", () => {
 			),
 		)
 
-		controller = new ClineIgnoreController(tempDir)
+		controller = new PercyIgnoreController(tempDir)
 		await controller.initialize()
 	})
 
@@ -85,7 +85,7 @@ describe("ClineIgnoreController", () => {
 				["*.secret", "private/", "*.tmp", "data-*.json", "temp/*"].join("\n"),
 			)
 
-			controller = new ClineIgnoreController(tempDir)
+			controller = new PercyIgnoreController(tempDir)
 			await controller.initialize()
 
 			const results = [
@@ -116,7 +116,7 @@ describe("ClineIgnoreController", () => {
 		// 		].join("\n"),
 		// 	)
 
-		// 	controller = new ClineIgnoreController(tempDir)
+		// 	controller = new PercyIgnoreController(tempDir)
 
 		// 	const results = [
 		// 		// Basic negation
@@ -155,7 +155,7 @@ describe("ClineIgnoreController", () => {
 				["# Comment line", "*.secret", "private/", "temp.*"].join("\n"),
 			)
 
-			controller = new ClineIgnoreController(tempDir)
+			controller = new PercyIgnoreController(tempDir)
 			await controller.initialize()
 
 			const result = controller.validateAccess("test.secret")
@@ -223,7 +223,7 @@ describe("ClineIgnoreController", () => {
 			await fs.mkdir(emptyDir)
 
 			try {
-				const controller = new ClineIgnoreController(emptyDir)
+				const controller = new PercyIgnoreController(emptyDir)
 				await controller.initialize()
 				const result = controller.validateAccess("file.txt")
 				result.should.be.true()
@@ -235,7 +235,7 @@ describe("ClineIgnoreController", () => {
 		it("should handle empty .clineignore", async () => {
 			await fs.writeFile(path.join(tempDir, ".clineignore"), "")
 
-			controller = new ClineIgnoreController(tempDir)
+			controller = new PercyIgnoreController(tempDir)
 			await controller.initialize()
 
 			const result = controller.validateAccess("regular-file.txt")

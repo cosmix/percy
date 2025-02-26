@@ -1,11 +1,11 @@
-# Cline and Model Context Protocol (MCP) Servers: Enhancing AI Capabilities
+# Percy and Model Context Protocol (MCP) Servers: Enhancing AI Capabilities
 
 **Quick Links:**
 
 -   [Building MCP Servers from GitHub](mcp-server-from-github.md)
 -   [Building Custom MCP Servers from Scratch](mcp-server-from-scratch.md)
 
-This document explains Model Context Protocol (MCP) servers, their capabilities, and how Cline can help build and use them.
+This document explains Model Context Protocol (MCP) servers, their capabilities, and how Percy can help build and use them.
 
 ## Overview
 
@@ -64,22 +64,22 @@ The potential of MCP servers is vast. They can be used for a variety of purposes
 -   **Customize Existing Servers:** Modify existing servers to fit your specific requirements
 -   **Build from Scratch:** Create completely custom servers for unique use cases
 
-## Integration with Cline
+## Integration with Percy
 
-Cline simplifies the building and use of MCP servers through its AI capabilities.
+Percy simplifies the building and use of MCP servers through its AI capabilities.
 
 ### Building MCP Servers
 
--   **Natural language understanding:** Instruct Cline in natural language to build an MCP server by describing its functionalities. Cline will interpret your instructions and generate the necessary code.
--   **Cloning and building servers:** Cline can clone existing MCP server repositories from GitHub and build them automatically.
--   **Configuration and dependency management:** Cline handles configuration files, environment variables, and dependencies.
--   **Troubleshooting and debugging:** Cline helps identify and resolve errors during development.
+-   **Natural language understanding:** Instruct Percy in natural language to build an MCP server by describing its functionalities. Percy will interpret your instructions and generate the necessary code.
+-   **Cloning and building servers:** Percy can clone existing MCP server repositories from GitHub and build them automatically.
+-   **Configuration and dependency management:** Percy handles configuration files, environment variables, and dependencies.
+-   **Troubleshooting and debugging:** Percy helps identify and resolve errors during development.
 
 ### Using MCP Servers
 
--   **Tool execution:** Cline seamlessly integrates with MCP servers, allowing you to execute their defined tools.
--   **Context-aware interactions:** Cline can intelligently suggest using relevant tools based on conversation context.
--   **Dynamic integrations:** Combine multiple MCP server capabilities for complex tasks. For example, Cline could use a GitHub server to get data and a Notion server to create a formatted report.
+-   **Tool execution:** Percy seamlessly integrates with MCP servers, allowing you to execute their defined tools.
+-   **Context-aware interactions:** Percy can intelligently suggest using relevant tools based on conversation context.
+-   **Dynamic integrations:** Combine multiple MCP server capabilities for complex tasks. For example, Percy could use a GitHub server to get data and a Notion server to create a formatted report.
 
 ## Security Considerations
 

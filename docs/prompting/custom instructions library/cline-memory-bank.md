@@ -1,10 +1,10 @@
-# Cline Memory Bank - Custom Instructions
+# Percy Memory Bank - Custom Instructions
 
 ### 1. Purpose and Functionality
 
 -   **What does this instruction set aim to achieve?**
 
-    -   This instruction set transforms Cline into a self-documenting development system that maintains context across sessions through a structured "Memory Bank". It ensures consistent documentation, careful validation of changes, and clear communication with users.
+    -   This instruction set transforms Percy into a self-documenting development system that maintains context across sessions through a structured "Memory Bank". It ensures consistent documentation, careful validation of changes, and clear communication with users.
 
 -   **What types of projects or tasks is this best suited for?**
     -   Projects requiring extensive context tracking.
@@ -15,7 +15,7 @@
 
 -   **How to Add These Instructions**
     1. Open VSCode
-    2. Click the Cline extension settings dial ⚙️
+    2. Click the Percy extension settings dial ⚙️
     3. Find the "Custom Instructions" field
     4. Copy and paste the instructions from the section below
 
@@ -24,16 +24,16 @@
 -   **Project Setup**
 
     1. Create an empty `cline_docs` folder in your project root (i.e. YOUR-PROJECT-FOLDER/cline_docs)
-    2. For first use, provide a project brief and ask Cline to "initialize memory bank"
+    2. For first use, provide a project brief and ask Percy to "initialize memory bank"
 
 -   **Best Practices**
     -   Monitor for `[MEMORY BANK: ACTIVE]` flags during operation.
     -   Pay attention to confidence checks on critical operations.
-    -   When starting new projects, create a project brief for Cline (paste in chat or include in `cline_docs` as `projectBrief.md`) to use in creating the initial context files.
-        -   note: productBrief.md (or whatever documentation you have) can be any range of technical/nontechnical or just functional. Cline is instructed to fill in the gaps when creating these context files. For example, if you don't choose a tech stack, Cline will for you.
+    -   When starting new projects, create a project brief for Percy (paste in chat or include in `cline_docs` as `projectBrief.md`) to use in creating the initial context files.
+        -   note: productBrief.md (or whatever documentation you have) can be any range of technical/nontechnical or just functional. Percy is instructed to fill in the gaps when creating these context files. For example, if you don't choose a tech stack, Percy will for you.
     -   Start chats with "follow your custom instructions" (you only need to say this once at the beginning of the first chat).
-    -   When prompting Cline to update context files, say "only update the relevant cline_docs"
-    -   Verify documentation updates at the end of sessions by telling Cline "update memory bank".
+    -   When prompting Percy to update context files, say "only update the relevant cline_docs"
+    -   Verify documentation updates at the end of sessions by telling Percy "update memory bank".
     -   Update memory bank at ~2 million tokens and end the session.
 
 ### 3. Author & Contributors
@@ -41,15 +41,15 @@
 -   **Author**
     -   nickbaumann98
 -   **Contributors**
-    -   Contributors (Discord: [Cline's #prompts](https://discord.com/channels/1275535550845292637/1275555786621325382)):
+    -   Contributors (Discord: [Percy's #prompts](https://discord.com/channels/1275535550845292637/1275555786621325382)):
         -   @SniperMunyShotz
 
 ### 4. Custom Instructions
 
 ```markdown
-# Cline's Memory Bank
+# Percy's Memory Bank
 
-You are Cline, an expert software engineer with a unique constraint: your memory periodically resets completely. This isn't a bug - it's what makes you maintain perfect documentation. After each reset, you rely ENTIRELY on your Memory Bank to understand the project and continue work. Without proper documentation, you cannot function effectively.
+You are Percy, an expert software engineer with a unique constraint: your memory periodically resets completely. This isn't a bug - it's what makes you maintain perfect documentation. After each reset, you rely ENTIRELY on your Memory Bank to understand the project and continue work. Without proper documentation, you cannot function effectively.
 
 ## Memory Bank Files
 

@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app"
 import { Auth, User, getAuth, onAuthStateChanged, signInWithCustomToken, signOut } from "firebase/auth"
 import * as vscode from "vscode"
-import { ClineProvider } from "../../core/webview/ClineProvider"
+import { PercyProvider } from "../../core/webview/PercyProvider"
 import { firebaseConfig } from "./config"
 
 export interface UserInfo {
@@ -11,11 +11,11 @@ export interface UserInfo {
 }
 
 export class FirebaseAuthManager {
-	private providerRef: WeakRef<ClineProvider>
+	private providerRef: WeakRef<PercyProvider>
 	private auth: Auth
 	private disposables: vscode.Disposable[] = []
 
-	constructor(provider: ClineProvider) {
+	constructor(provider: PercyProvider) {
 		console.log("Initializing FirebaseAuthManager", { provider })
 		this.providerRef = new WeakRef(provider)
 		const app = initializeApp(firebaseConfig)

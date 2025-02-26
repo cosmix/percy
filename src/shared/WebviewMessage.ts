@@ -41,9 +41,6 @@ export interface WebviewMessage {
 		| "toggleToolAutoApprove"
 		| "toggleMcpServer"
 		| "getLatestState"
-		| "accountLoginClicked"
-		| "accountLogoutClicked"
-		| "subscribeEmail"
 		| "fetchMcpMarketplace"
 		| "downloadMcp"
 		| "silentlyRefreshMcpMarketplace"
@@ -54,7 +51,7 @@ export interface WebviewMessage {
 	// | "relaunchChromeDebugMode"
 	text?: string
 	disabled?: boolean
-	askResponse?: ClineAskResponse
+	askResponse?: PercyAskResponse
 	apiConfiguration?: ApiConfiguration
 	images?: string[]
 	bool?: boolean
@@ -74,6 +71,6 @@ export interface WebviewMessage {
 	expanded?: boolean
 }
 
-export type ClineAskResponse = "yesButtonClicked" | "noButtonClicked" | "messageResponse"
+export type PercyAskResponse = "yesButtonClicked" | "noButtonClicked" | "messageResponse"
 
-export type ClineCheckpointRestore = "task" | "workspace" | "taskAndWorkspace"
+export type PercyCheckpointRestore = "task" | "workspace" | "taskAndWorkspace"
