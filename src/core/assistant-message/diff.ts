@@ -367,12 +367,34 @@ export async function constructNewFileContent(
  * @returns A simplified preview of what the content might look like
  */
 function previewModeConstructNewFileContent(diffContent: string, originalContent: string): string {
-	// For preview purposes, we just return the original content
+	// If this is a new file (empty original content), we need to extract content from the diff
+	if (originalContent.length === 0) {
+		// For new files, we need to extract content from the REPLACE blocks
+		let result = ""
+		let inReplace = false
+
+		const lines = diffContent.split("\n")
+		for (const line of lines) {
+			if (line === "=======") {
+				inReplace = true
+				continue
+			}
+
+			if (line === ">>>>>>> REPLACE") {
+				inReplace = false
+				continue
+			}
+
+			if (inReplace && line !== "<<<<<<< SEARCH") {
+				result += line + "\n"
+			}
+		}
+
+		return result
+	}
+
+	// For existing files, we just return the original content
 	// This maintains the visual appearance without doing expensive diffing
 	// The actual diffing will be performed when streaming is complete
-
-	// A more sophisticated implementation could attempt to show a rough approximation
-	// of what the changes might look like, but for most cases, showing the original
-	// content is sufficient for visual streaming purposes
 	return originalContent
 }
