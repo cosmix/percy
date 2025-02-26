@@ -373,7 +373,21 @@ export class DiffViewProvider {
 		const beginningOfDocument = new vscode.Position(0, 0)
 		diffEditor.selection = new vscode.Selection(beginningOfDocument, beginningOfDocument)
 
-		// Update decorations only without modifying document content
+		// For new files, we need to actually update the document content
+		// For existing files, we just update decorations to save CPU cycles
+		const isNewFile = this.editType === "create"
+
+		if (isNewFile) {
+			// For new files, we need to update the actual document content
+			// similar to the non-streaming update method but without expensive diffing
+			const edit = new vscode.WorkspaceEdit()
+			const rangeToReplace = new vscode.Range(0, 0, document.lineCount, 0)
+			const contentToReplace = accumulatedLines.join("\n") + "\n"
+			edit.replace(document.uri, rangeToReplace, contentToReplace)
+			await vscode.workspace.applyEdit(edit)
+		}
+
+		// Update decorations
 		for (let i = 0; i < diffLines.length; i++) {
 			const currentLine = this.streamedLines.length + i
 			this.activeLineController!.setActiveLine(currentLine)
