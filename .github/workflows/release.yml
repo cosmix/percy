@@ -1,0 +1,64 @@
+name: Release VSCode Extension
+
+on:
+    workflow_dispatch:
+        # Manual trigger by admin
+
+jobs:
+    build-and-release:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0 # Fetch all history for release notes
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "20"
+                  cache: "npm"
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Build extension
+              run: npm run package
+
+            - name: Install vsce
+              run: npm install -g @vscode/vsce
+
+            - name: Create VSIX package
+              run: vsce package
+              # This creates a .vsix file but does not publish to marketplace
+
+            - name: Get version from package.json
+              id: package-version
+              run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+            - name: Generate release notes
+              id: release-notes
+              run: |
+                  # Make the script executable
+                  chmod +x .github/scripts/generate-release-notes.sh
+
+                  # Run the script and capture output
+                  NOTES=$(.github/scripts/generate-release-notes.sh)
+
+                  # Save notes to output in a way that preserves newlines
+                  echo "NOTES<<EOF" >> $GITHUB_OUTPUT
+                  echo "$NOTES" >> $GITHUB_OUTPUT
+                  echo "EOF" >> $GITHUB_OUTPUT
+
+            - name: Create GitHub Release
+              uses: softprops/action-gh-release@v1
+              with:
+                  tag_name: v${{ steps.package-version.outputs.VERSION }}
+                  name: Release v${{ steps.package-version.outputs.VERSION }}
+                  body: ${{ steps.release-notes.outputs.NOTES }}
+                  files: "*.vsix"
+                  draft: false
+                  prerelease: false
