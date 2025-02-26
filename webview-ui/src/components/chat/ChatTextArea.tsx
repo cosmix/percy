@@ -156,7 +156,7 @@ const ModelButtonWrapper = styled.div`
 	max-width: 100%; // Don't overflow parent
 `
 
-const ModelDisplayButton = styled.a<{ isActive?: boolean; disabled?: boolean }>`
+const ModelDisplayButton = styled.a<{ isActive?: boolean; disabled?: boolean; mode?: "plan" | "act" }>`
 	padding: 0px 0px;
 	height: 20px;
 	width: 100%;
@@ -171,6 +171,7 @@ const ModelDisplayButton = styled.a<{ isActive?: boolean; disabled?: boolean }>`
 	user-select: none;
 	opacity: ${(props) => (props.disabled ? 0.5 : 1)};
 	pointer-events: ${(props) => (props.disabled ? "none" : "auto")};
+	position: relative; /* Position relative for absolute positioning of pseudo-element */
 
 	&:hover,
 	&:focus {
@@ -196,6 +197,10 @@ const ModelButtonContent = styled.div`
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+	display: inline-block; /* Ensure content is always visible */
+	pointer-events: none; /* Prevent hover events on the content itself */
+	z-index: 2; /* Ensure content stays above any hover effects */
+	position: relative; /* Ensure z-index works properly */
 `
 
 const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
@@ -1110,7 +1115,8 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 									// 		handleModelButtonClick()
 									// 	}
 									// }}
-									tabIndex={0}>
+									tabIndex={0}
+									title={modelDisplayName}>
 									<ModelButtonContent>{modelDisplayName}</ModelButtonContent>
 								</ModelDisplayButton>
 							</ModelButtonWrapper>

@@ -20,13 +20,13 @@ const ACTION_METADATA: {
 		id: "readFiles",
 		label: "Read files and directories",
 		shortName: "Read",
-		description: "Allows access to read any file on your computer.",
+		description: "Allows access to read any file in the current workspace.",
 	},
 	{
 		id: "editFiles",
 		label: "Edit files",
 		shortName: "Edit",
-		description: "Allows modification of any files on your computer.",
+		description: "Allows modification of any files in the current workspace.",
 	},
 	{
 		id: "executeCommands",

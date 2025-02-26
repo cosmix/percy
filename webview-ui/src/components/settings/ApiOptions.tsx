@@ -84,12 +84,14 @@ const ApiOptions = ({ showModelOptions, apiErrorMessage, modelIdErrorMessage, is
 	const [thinkingBudgetInput, setThinkingBudgetInput] = useState(
 		apiConfiguration?.anthropicThinking?.budget_tokens?.toString() || "8192",
 	)
+	const [maxTokensInput, setMaxTokensInput] = useState((apiConfiguration?.maxTokens || 8192).toString())
 
 	// Initialize state when component mounts or when apiConfiguration changes
 	useEffect(() => {
 		setAnthropicThinkingSelected(!!apiConfiguration?.anthropicThinking)
 		setThinkingBudgetInput(apiConfiguration?.anthropicThinking?.budget_tokens?.toString() || "8192")
-	}, [apiConfiguration?.anthropicThinking])
+		setMaxTokensInput((apiConfiguration?.maxTokens || 8192).toString())
+	}, [apiConfiguration?.anthropicThinking, apiConfiguration?.maxTokens])
 	const [azureApiVersionSelected, setAzureApiVersionSelected] = useState(!!apiConfiguration?.azureApiVersion)
 	const [modelConfigurationSelected, setModelConfigurationSelected] = useState(false)
 	const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false)
@@ -1230,31 +1232,42 @@ const ApiOptions = ({ showModelOptions, apiErrorMessage, modelIdErrorMessage, is
 
 									<div style={{ marginTop: "10px" }}>
 										<VSCodeTextField
-											value={(apiConfiguration?.maxTokens || 8192).toString()}
+											value={maxTokensInput}
 											style={{ width: "100%" }}
 											onInput={(e: any) => {
+												// Just update the input field value without validation
+												setMaxTokensInput(e.target.value)
+											}}
+											onBlur={(e: any) => {
+												// Apply validation when the field loses focus
 												const maxTokens = parseInt(e.target.value, 10)
 												const validMaxTokens = isNaN(maxTokens)
 													? 8192
 													: Math.min(Math.max(maxTokens, 1), 64000)
 
-												// Update the maxTokens in the configuration
+												// Update the displayed value to match the validated value
+												setMaxTokensInput(validMaxTokens.toString())
+
+												// Update the configuration
 												setApiConfiguration({
 													...apiConfiguration,
 													maxTokens: validMaxTokens,
-													// If thinking is enabled, ensure its budget doesn't exceed the new max tokens
-													...(apiConfiguration?.anthropicThinking
-														? {
-																anthropicThinking: {
-																	type: "enabled",
-																	budget_tokens: Math.min(
-																		apiConfiguration.anthropicThinking.budget_tokens,
-																		validMaxTokens,
-																	),
-																},
-															}
-														: {}),
 												})
+
+												// Only update thinking budget if it exists and new max tokens is LOWER than current budget
+												if (
+													apiConfiguration?.anthropicThinking &&
+													validMaxTokens < apiConfiguration.anthropicThinking.budget_tokens
+												) {
+													setApiConfiguration({
+														...apiConfiguration,
+														maxTokens: validMaxTokens,
+														anthropicThinking: {
+															type: "enabled",
+															budget_tokens: validMaxTokens,
+														},
+													})
+												}
 											}}
 											placeholder="Max tokens (default: 8192)">
 											<span style={{ fontWeight: 500 }}>Max output tokens</span>
