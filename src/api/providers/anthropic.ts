@@ -22,6 +22,37 @@ export class AnthropicHandler implements ApiHandler {
 		const model = this.getModel()
 		let stream: AnthropicStream<Anthropic.Beta.PromptCaching.Messages.RawPromptCachingBetaMessageStreamEvent>
 		const modelId = model.id
+
+		// Prepare request options (including thinking if applicable)
+		const requestOptions: Record<string, any> = {}
+
+		// Determine max_tokens value
+		let maxTokens: number
+		// Determine temperature value (default is 0)
+		let temperature = 0
+
+		// For Claude 3.7 Sonnet, use custom value from options if provided (default 8192, max 64000)
+		if (modelId === "claude-3-7-sonnet-20250219") {
+			maxTokens = Math.min(this.options.maxTokens || 8192, 64000)
+
+			// Only apply thinking options to Claude 3.7 Sonnet
+			if (this.options.anthropicThinking) {
+				// Ensure thinking budget doesn't exceed max_tokens
+				const thinkingBudget = this.options.anthropicThinking.budget_tokens
+
+				requestOptions.thinking = {
+					...this.options.anthropicThinking,
+					budget_tokens: Math.min(thinkingBudget, maxTokens),
+				}
+
+				// Set temperature to 1.0 when thinking mode is enabled for Claude 3.7 Sonnet
+				temperature = 1.0
+			}
+		} else {
+			// For other models, use the model's default max tokens
+			maxTokens = model.info.maxTokens || 8192
+		}
+
 		switch (modelId) {
 			// 'latest' alias does not support cache_control
 			case "claude-3-7-sonnet-20250219":
@@ -41,8 +72,8 @@ export class AnthropicHandler implements ApiHandler {
 				stream = await this.client.beta.promptCaching.messages.create(
 					{
 						model: modelId,
-						max_tokens: model.info.maxTokens || 8192,
-						temperature: 0,
+						max_tokens: maxTokens,
+						temperature: temperature,
 						system: [
 							{
 								text: systemPrompt,
@@ -83,6 +114,7 @@ export class AnthropicHandler implements ApiHandler {
 						// tool_choice: { type: "auto" },
 						// tools: tools,
 						stream: true,
+						...requestOptions, // Add thinking options if applicable
 					},
 					(() => {
 						// prompt caching: https://x.com/alexalbert__/status/1823751995901272068
@@ -109,8 +141,8 @@ export class AnthropicHandler implements ApiHandler {
 			default: {
 				stream = (await this.client.messages.create({
 					model: modelId,
-					max_tokens: model.info.maxTokens || 8192,
-					temperature: 0,
+					max_tokens: maxTokens,
+					temperature: temperature,
 					system: [{ text: systemPrompt, type: "text" }],
 					messages,
 					// tools,
@@ -147,7 +179,7 @@ export class AnthropicHandler implements ApiHandler {
 					// no usage data, just an indicator that the message is done
 					break
 				case "content_block_start":
-					switch (chunk.content_block.type) {
+					switch (chunk.content_block.type as string) {
 						case "text":
 							// we may receive multiple text blocks, in which case just insert a line break between them
 							if (chunk.index > 0) {
@@ -158,17 +190,54 @@ export class AnthropicHandler implements ApiHandler {
 							}
 							yield {
 								type: "text",
-								text: chunk.content_block.text,
+								text: (chunk.content_block as any).text,
+							}
+							break
+						case "thinking":
+							// Convert thinking chunks to reasoning chunks for display in the UI
+							yield {
+								type: "reasoning",
+								reasoning: (chunk.content_block as any).thinking,
+							}
+							// Also yield the original thinking chunk for internal use
+							yield {
+								type: "thinking",
+								thinking: (chunk.content_block as any).thinking,
+								signature: (chunk.content_block as any).signature,
+							}
+							break
+						case "redacted_thinking":
+							yield {
+								type: "redacted_thinking",
+								data: (chunk.content_block as any).data,
 							}
 							break
 					}
 					break
 				case "content_block_delta":
-					switch (chunk.delta.type) {
+					switch (chunk.delta.type as string) {
 						case "text_delta":
 							yield {
 								type: "text",
-								text: chunk.delta.text,
+								text: (chunk.delta as any).text,
+							}
+							break
+						case "thinking_delta":
+							// Convert thinking_delta chunks to reasoning chunks for display in the UI
+							yield {
+								type: "reasoning",
+								reasoning: (chunk.delta as any).thinking,
+							}
+							// Also yield the original thinking_delta chunk for internal use
+							yield {
+								type: "thinking_delta",
+								thinking: (chunk.delta as any).thinking,
+							}
+							break
+						case "signature_delta":
+							yield {
+								type: "signature_delta",
+								signature: (chunk.delta as any).signature,
 							}
 							break
 					}

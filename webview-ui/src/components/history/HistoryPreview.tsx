@@ -11,7 +11,7 @@ type HistoryPreviewProps = {
 const HistoryPreview = ({ showHistoryView }: HistoryPreviewProps) => {
 	const { taskHistory } = useExtensionState()
 	const [isCollapsed, setIsCollapsed] = useState(false)
-	
+
 	const handleHistorySelect = (id: string) => {
 		vscode.postMessage({ type: "showTaskWithId", text: id })
 	}
@@ -67,17 +67,16 @@ const HistoryPreview = ({ showHistoryView }: HistoryPreviewProps) => {
 					alignItems: "center",
 					justifyContent: "space-between",
 				}}>
-				<div 
-					style={{ 
-						display: "flex", 
-						alignItems: "center", 
-						cursor: "pointer" 
+				<div
+					style={{
+						display: "flex",
+						alignItems: "center",
+						cursor: "pointer",
 					}}
 					onClick={() => setIsCollapsed(!isCollapsed)}
-					className="history-toggle"
-				>
+					className="history-toggle">
 					<span
-						className={`codicon codicon-${isCollapsed ? 'chevron-right' : 'chevron-down'}`}
+						className={`codicon codicon-${isCollapsed ? "chevron-right" : "chevron-down"}`}
 						style={{
 							marginRight: "4px",
 							transform: "scale(0.9)",
@@ -139,7 +138,8 @@ const HistoryPreview = ({ showHistoryView }: HistoryPreviewProps) => {
 											color: "var(--vscode-descriptionForeground)",
 										}}>
 										<span>
-											Tokens: ↑{formatLargeNumber(item.tokensIn || 0)} ↓{formatLargeNumber(item.tokensOut || 0)}
+											Tokens: ↑{formatLargeNumber(item.tokensIn || 0)} ↓
+											{formatLargeNumber(item.tokensOut || 0)}
 										</span>
 										{!!item.cacheWrites && (
 											<>

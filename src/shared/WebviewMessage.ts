@@ -50,6 +50,7 @@ export interface WebviewMessage {
 		| "searchCommits"
 		| "showMcpView"
 		| "fetchLatestMcpServersFromHub"
+		| "updateReasoningBlocksExpanded"
 	// | "relaunchChromeDebugMode"
 	text?: string
 	disabled?: boolean
@@ -68,6 +69,9 @@ export interface WebviewMessage {
 	serverName?: string
 	toolName?: string
 	autoApprove?: boolean
+
+	// For updateReasoningBlocksExpanded
+	expanded?: boolean
 }
 
 export type ClineAskResponse = "yesButtonClicked" | "noButtonClicked" | "messageResponse"

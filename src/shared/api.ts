@@ -23,6 +23,11 @@ export interface ApiHandlerOptions {
 	liteLlmModelId?: string
 	liteLlmApiKey?: string
 	anthropicBaseUrl?: string
+	anthropicThinking?: {
+		type: "enabled"
+		budget_tokens: number
+	} | null // Thinking options for Claude 3.7 Sonnet
+	maxTokens?: number // Custom max tokens value for the model
 	openRouterApiKey?: string
 	openRouterModelId?: string
 	openRouterModelInfo?: ModelInfo
@@ -75,6 +80,7 @@ export interface ModelInfo {
 	cacheWritesPrice?: number
 	cacheReadsPrice?: number
 	description?: string
+	supportsThinking?: boolean // Indicates if the model supports thinking mode
 }
 
 // Anthropic
@@ -83,7 +89,7 @@ export type AnthropicModelId = keyof typeof anthropicModels
 export const anthropicDefaultModelId: AnthropicModelId = "claude-3-7-sonnet-20250219"
 export const anthropicModels = {
 	"claude-3-7-sonnet-20250219": {
-		maxTokens: 8192,
+		maxTokens: 8192, // Default to 8192, can be adjusted up to 64000 by the user
 		contextWindow: 200_000,
 		supportsImages: true,
 		supportsComputerUse: true,
@@ -92,6 +98,7 @@ export const anthropicModels = {
 		outputPrice: 15.0,
 		cacheWritesPrice: 3.75,
 		cacheReadsPrice: 0.3,
+		supportsThinking: true, // Only Claude 3.7 Sonnet supports thinking
 	},
 	"claude-3-5-sonnet-20241022": {
 		maxTokens: 8192,
@@ -142,7 +149,7 @@ export type BedrockModelId = keyof typeof bedrockModels
 export const bedrockDefaultModelId: BedrockModelId = "anthropic.claude-3-5-sonnet-20241022-v2:0"
 export const bedrockModels = {
 	"anthropic.claude-3-7-sonnet-20250219-v1:0": {
-		maxTokens: 8192,
+		maxTokens: 64000,
 		contextWindow: 200_000,
 		supportsImages: true,
 		supportsComputerUse: true,
@@ -207,7 +214,7 @@ export const bedrockModels = {
 // https://openrouter.ai/models?order=newest&supported_parameters=tools
 export const openRouterDefaultModelId = "anthropic/claude-3.7-sonnet" // will always exist in openRouterModels
 export const openRouterDefaultModelInfo: ModelInfo = {
-	maxTokens: 8192,
+	maxTokens: 64000,
 	contextWindow: 200_000,
 	supportsImages: true,
 	supportsComputerUse: true,
@@ -226,7 +233,7 @@ export type VertexModelId = keyof typeof vertexModels
 export const vertexDefaultModelId: VertexModelId = "claude-3-5-sonnet-v2@20241022"
 export const vertexModels = {
 	"claude-3-7-sonnet@20250219": {
-		maxTokens: 8192,
+		maxTokens: 64000,
 		contextWindow: 200_000,
 		supportsImages: true,
 		supportsComputerUse: true,
