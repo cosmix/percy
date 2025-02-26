@@ -20,7 +20,6 @@ export const CheckmarkControl = ({ messageTs, isCheckpointCheckedOut }: Checkmar
 	const [restoreBothDisabled, setRestoreBothDisabled] = useState(false)
 	const [showRestoreConfirm, setShowRestoreConfirm] = useState(false)
 	const [hasMouseEntered, setHasMouseEntered] = useState(false)
-	const containerRef = useRef<HTMLDivElement>(null)
 	const tooltipRef = useRef<HTMLDivElement>(null)
 
 	const { refs, floatingStyles, update, placement } = useFloating({
