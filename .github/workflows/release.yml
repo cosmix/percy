@@ -23,7 +23,9 @@ jobs:
                   cache: "npm"
 
             - name: Install dependencies
-              run: npm ci
+              run: |
+                  npm ci
+                  cd webview-ui && npm ci
 
             - name: Build extension
               run: npm run package
