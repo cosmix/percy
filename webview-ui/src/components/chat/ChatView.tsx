@@ -1,16 +1,16 @@
-import { VSCodeButton, VSCodeLink } from "@vscode/webview-ui-toolkit/react"
+import { VSCodeButton } from "@vscode/webview-ui-toolkit/react"
 import debounce from "debounce"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useDeepCompareEffect, useEvent, useMount } from "react-use"
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso"
 import styled from "styled-components"
 import {
+	ExtensionMessage,
 	PercyApiReqInfo,
 	PercyAsk,
 	PercyMessage,
 	PercySayBrowserAction,
 	PercySayTool,
-	ExtensionMessage,
 } from "../../../../src/shared/ExtensionMessage"
 import { findLast } from "../../../../src/shared/array"
 import { combineApiRequests } from "../../../../src/shared/combineApiRequests"

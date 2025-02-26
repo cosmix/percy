@@ -1,11 +1,11 @@
-import React, { useState } from "react"
+import React from "react"
 import styled from "styled-components"
 import {
 	getAsVar,
 	VSC_DESCRIPTION_FOREGROUND,
-	VSC_SIDEBAR_BACKGROUND,
-	VSC_INPUT_PLACEHOLDER_FOREGROUND,
 	VSC_INPUT_BORDER,
+	VSC_INPUT_PLACEHOLDER_FOREGROUND,
+	VSC_SIDEBAR_BACKGROUND,
 } from "../../utils/vscStyles"
 
 interface TooltipProps {
