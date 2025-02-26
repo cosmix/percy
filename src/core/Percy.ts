@@ -1219,17 +1219,95 @@ export class Percy {
 		}
 	}
 
-	shouldAutoApproveTool(toolName: ToolUseName): boolean {
+	/**
+	 * Checks if a file path is within the current workspace
+	 * @param filePath - Path to check (relative to cwd)
+	 * @returns true if the path is within the workspace, false otherwise
+	 */
+	private isPathWithinWorkspace(filePath: string): boolean {
+		// Use path.resolve to handle relative paths like '../../'
+		const absolutePath = path.resolve(cwd, filePath)
+
+		// Check if the path is within workspace
+		// First, normalize both paths for correct comparison
+		const normalizedWorkspacePath = path.normalize(cwd)
+		const normalizedFilePath = path.normalize(absolutePath)
+
+		// Check if the file path starts with the workspace path
+		return normalizedFilePath.startsWith(normalizedWorkspacePath)
+	}
+
+	/**
+	 * Checks if a file path is a symbolic link
+	 * @param filePath - Path to check (relative to cwd)
+	 * @returns Promise that resolves to true if the path is a symbolic link, false otherwise
+	 */
+	private async isSymbolicLink(filePath: string): Promise<boolean> {
+		try {
+			const absolutePath = path.resolve(cwd, filePath)
+			const stats = await fs.lstat(absolutePath)
+			return stats.isSymbolicLink()
+		} catch (error) {
+			// If there's an error (e.g., file doesn't exist), be cautious
+			console.error(`Error checking if path is a symlink: ${error}`)
+			return false // We don't know for sure, so assume it's not a symlink
+		}
+	}
+
+	/**
+	 * Determines if a tool should be auto-approved based on settings and path constraints
+	 * @param toolName - The name of the tool to check
+	 * @param params - Optional parameters for the tool (needed for path checks)
+	 * @returns Promise that resolves to true if the tool should be auto-approved, false otherwise
+	 */
+	async shouldAutoApproveTool(toolName: ToolUseName, params?: any): Promise<boolean> {
 		if (this.autoApprovalSettings.enabled) {
+			// File operations that need path checking
 			switch (toolName) {
 				case "read_file":
+				case "write_to_file":
+				case "replace_in_file":
+					if (!params || !params.path) {
+						return false
+					}
+
+					// First check: Is it a symlink? If so, do not auto-approve
+					const isSymlink = await this.isSymbolicLink(params.path)
+					if (isSymlink) {
+						return false
+					}
+
+					// Second check: Is it within workspace?
+					const isWithinWorkspace = this.isPathWithinWorkspace(params.path)
+					if (!isWithinWorkspace) {
+						return false
+					}
+
+					// If all checks pass, apply normal permission logic
+					return toolName === "read_file"
+						? this.autoApprovalSettings.actions.readFiles
+						: this.autoApprovalSettings.actions.editFiles
+
 				case "list_files":
 				case "list_code_definition_names":
 				case "search_files":
+					if (!params || !params.path) {
+						return false
+					}
+
+					// For directories, we follow the same process
+					const isDirSymlink = await this.isSymbolicLink(params.path)
+					if (isDirSymlink) {
+						return false
+					}
+
+					const isDirWithinWorkspace = this.isPathWithinWorkspace(params.path)
+					if (!isDirWithinWorkspace) {
+						return false
+					}
+
 					return this.autoApprovalSettings.actions.readFiles
-				case "write_to_file":
-				case "replace_in_file":
-					return this.autoApprovalSettings.actions.editFiles
+
 				case "execute_command":
 					return this.autoApprovalSettings.actions.executeCommands
 				case "browser_action":
@@ -1733,7 +1811,8 @@ export class Percy {
 							if (block.partial) {
 								// update gui message
 								const partialMessage = JSON.stringify(sharedMessageProps)
-								if (this.shouldAutoApproveTool(block.name)) {
+								const shouldAutoApprove = await this.shouldAutoApproveTool(block.name, { path: relPath })
+								if (shouldAutoApprove) {
 									this.removeLastPartialMessageIfExistsWithType("ask", "tool") // in case the user changes auto-approval settings mid stream
 									await this.say("tool", partialMessage, undefined, block.partial)
 								} else {
@@ -1798,7 +1877,8 @@ export class Percy {
 									// : undefined,
 								} satisfies PercySayTool)
 
-								if (this.shouldAutoApproveTool(block.name)) {
+								const shouldAutoApprove = await this.shouldAutoApproveTool(block.name, { path: relPath })
+								if (shouldAutoApprove) {
 									this.removeLastPartialMessageIfExistsWithType("ask", "tool")
 									await this.say("tool", completeMessage, undefined, false)
 									this.consecutiveAutoApprovedRequestsCount++
@@ -1913,7 +1993,8 @@ export class Percy {
 									...sharedMessageProps,
 									content: undefined,
 								} satisfies PercySayTool)
-								if (this.shouldAutoApproveTool(block.name)) {
+								const shouldAutoApprove = await this.shouldAutoApproveTool(block.name, { path: relPath })
+								if (shouldAutoApprove) {
 									this.removeLastPartialMessageIfExistsWithType("ask", "tool")
 									await this.say("tool", partialMessage, undefined, block.partial)
 								} else {
@@ -1943,7 +2024,8 @@ export class Percy {
 									...sharedMessageProps,
 									content: absolutePath,
 								} satisfies PercySayTool)
-								if (this.shouldAutoApproveTool(block.name)) {
+								const shouldAutoApprove = await this.shouldAutoApproveTool(block.name, { path: relPath })
+								if (shouldAutoApprove) {
 									this.removeLastPartialMessageIfExistsWithType("ask", "tool")
 									await this.say("tool", completeMessage, undefined, false) // need to be sending partialValue bool, since undefined has its own purpose in that the message is treated neither as a partial or completion of a partial, but as a single complete message
 									this.consecutiveAutoApprovedRequestsCount++
@@ -1983,7 +2065,8 @@ export class Percy {
 									...sharedMessageProps,
 									content: "",
 								} satisfies PercySayTool)
-								if (this.shouldAutoApproveTool(block.name)) {
+								const shouldAutoApprove = await this.shouldAutoApproveTool(block.name, { path: relDirPath })
+								if (shouldAutoApprove) {
 									this.removeLastPartialMessageIfExistsWithType("ask", "tool")
 									await this.say("tool", partialMessage, undefined, block.partial)
 								} else {
@@ -2014,7 +2097,8 @@ export class Percy {
 									...sharedMessageProps,
 									content: result,
 								} satisfies PercySayTool)
-								if (this.shouldAutoApproveTool(block.name)) {
+								const shouldAutoApprove = await this.shouldAutoApproveTool(block.name, { path: relDirPath })
+								if (shouldAutoApprove) {
 									this.removeLastPartialMessageIfExistsWithType("ask", "tool")
 									await this.say("tool", completeMessage, undefined, false)
 									this.consecutiveAutoApprovedRequestsCount++
@@ -2050,7 +2134,8 @@ export class Percy {
 									...sharedMessageProps,
 									content: "",
 								} satisfies PercySayTool)
-								if (this.shouldAutoApproveTool(block.name)) {
+								const shouldAutoApprove = await this.shouldAutoApproveTool(block.name, { path: relDirPath })
+								if (shouldAutoApprove) {
 									this.removeLastPartialMessageIfExistsWithType("ask", "tool")
 									await this.say("tool", partialMessage, undefined, block.partial)
 								} else {
@@ -2078,7 +2163,8 @@ export class Percy {
 									...sharedMessageProps,
 									content: result,
 								} satisfies PercySayTool)
-								if (this.shouldAutoApproveTool(block.name)) {
+								const shouldAutoApprove = await this.shouldAutoApproveTool(block.name, { path: relDirPath })
+								if (shouldAutoApprove) {
 									this.removeLastPartialMessageIfExistsWithType("ask", "tool")
 									await this.say("tool", completeMessage, undefined, false)
 									this.consecutiveAutoApprovedRequestsCount++
@@ -2118,7 +2204,11 @@ export class Percy {
 									...sharedMessageProps,
 									content: "",
 								} satisfies PercySayTool)
-								if (this.shouldAutoApproveTool(block.name)) {
+								const shouldAutoApprove = await this.shouldAutoApproveTool(block.name, {
+									path: relDirPath,
+									regex,
+								})
+								if (shouldAutoApprove) {
 									this.removeLastPartialMessageIfExistsWithType("ask", "tool")
 									await this.say("tool", partialMessage, undefined, block.partial)
 								} else {
@@ -2154,7 +2244,11 @@ export class Percy {
 									...sharedMessageProps,
 									content: results,
 								} satisfies PercySayTool)
-								if (this.shouldAutoApproveTool(block.name)) {
+								const shouldAutoApprove = await this.shouldAutoApproveTool(block.name, {
+									path: relDirPath,
+									regex,
+								})
+								if (shouldAutoApprove) {
 									this.removeLastPartialMessageIfExistsWithType("ask", "tool")
 									await this.say("tool", completeMessage, undefined, false)
 									this.consecutiveAutoApprovedRequestsCount++
@@ -2197,7 +2291,8 @@ export class Percy {
 						try {
 							if (block.partial) {
 								if (action === "launch") {
-									if (this.shouldAutoApproveTool(block.name)) {
+									const shouldAutoApprove = await this.shouldAutoApproveTool(block.name, { action })
+									if (shouldAutoApprove) {
 										this.removeLastPartialMessageIfExistsWithType("ask", "browser_action_launch")
 										await this.say(
 											"browser_action_launch",
@@ -2238,7 +2333,8 @@ export class Percy {
 									}
 									this.consecutiveMistakeCount = 0
 
-									if (this.shouldAutoApproveTool(block.name)) {
+									const shouldAutoApprove = await this.shouldAutoApproveTool(block.name, { action })
+									if (shouldAutoApprove) {
 										this.removeLastPartialMessageIfExistsWithType("ask", "browser_action_launch")
 										await this.say("browser_action_launch", url, undefined, false)
 										this.consecutiveAutoApprovedRequestsCount++
@@ -2353,7 +2449,8 @@ export class Percy {
 
 						try {
 							if (block.partial) {
-								if (this.shouldAutoApproveTool(block.name)) {
+								const shouldAutoApprove = await this.shouldAutoApproveTool(block.name)
+								if (shouldAutoApprove) {
 									// since depending on an upcoming parameter, requiresApproval this may become an ask - we cant partially stream a say prematurely. So in this particular case we have to wait for the requiresApproval parameter to be completed before presenting it.
 									// await this.say(
 									// 	"command",
@@ -2395,7 +2492,8 @@ export class Percy {
 
 								let didAutoApprove = false
 
-								if (!requiresApproval && this.shouldAutoApproveTool(block.name)) {
+								const shouldAutoApprove = await this.shouldAutoApproveTool(block.name)
+								if (!requiresApproval && shouldAutoApprove) {
 									this.removeLastPartialMessageIfExistsWithType("ask", "command")
 									await this.say("command", command, undefined, false)
 									this.consecutiveAutoApprovedRequestsCount++
@@ -2408,7 +2506,7 @@ export class Percy {
 									const didApprove = await askApproval(
 										"command",
 										command +
-											`${this.shouldAutoApproveTool(block.name) && requiresApproval ? COMMAND_REQ_APP_STRING : ""}`, // ugly hack until we refactor combineCommandSequences
+											`${(await this.shouldAutoApproveTool(block.name)) && requiresApproval ? COMMAND_REQ_APP_STRING : ""}`, // ugly hack until we refactor combineCommandSequences
 									)
 									if (!didApprove) {
 										break
@@ -2463,7 +2561,8 @@ export class Percy {
 									arguments: removeClosingTag("arguments", mcp_arguments),
 								} satisfies PercyAskUseMcpServer)
 
-								if (this.shouldAutoApproveTool(block.name)) {
+								const shouldAutoApprove = await this.shouldAutoApproveTool(block.name)
+								if (shouldAutoApprove) {
 									this.removeLastPartialMessageIfExistsWithType("ask", "use_mcp_server")
 									await this.say("use_mcp_server", partialMessage, undefined, block.partial)
 								} else {
@@ -2523,7 +2622,8 @@ export class Percy {
 									?.mcpHub?.connections?.find((conn) => conn.server.name === server_name)
 									?.server.tools?.find((tool) => tool.name === tool_name)?.autoApprove
 
-								if (this.shouldAutoApproveTool(block.name) && isToolAutoApproved) {
+								const shouldAutoApprove = await this.shouldAutoApproveTool(block.name)
+								if (shouldAutoApprove && isToolAutoApproved) {
 									this.removeLastPartialMessageIfExistsWithType("ask", "use_mcp_server")
 									await this.say("use_mcp_server", completeMessage, undefined, false)
 									this.consecutiveAutoApprovedRequestsCount++
@@ -2584,7 +2684,8 @@ export class Percy {
 									uri: removeClosingTag("uri", uri),
 								} satisfies PercyAskUseMcpServer)
 
-								if (this.shouldAutoApproveTool(block.name)) {
+								const shouldAutoApprove = await this.shouldAutoApproveTool(block.name)
+								if (shouldAutoApprove) {
 									this.removeLastPartialMessageIfExistsWithType("ask", "use_mcp_server")
 									await this.say("use_mcp_server", partialMessage, undefined, block.partial)
 								} else {
@@ -2613,7 +2714,8 @@ export class Percy {
 									uri,
 								} satisfies PercyAskUseMcpServer)
 
-								if (this.shouldAutoApproveTool(block.name)) {
+								const shouldAutoApprove = await this.shouldAutoApproveTool(block.name)
+								if (shouldAutoApprove) {
 									this.removeLastPartialMessageIfExistsWithType("ask", "use_mcp_server")
 									await this.say("use_mcp_server", completeMessage, undefined, false)
 									this.consecutiveAutoApprovedRequestsCount++
