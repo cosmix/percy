@@ -6,7 +6,6 @@ Percy is a fork of [Cline](https://www.github.com/cline/cline). It adds a number
 
 ## Additional Features
 
-- Diffing is only enabled once a file is fully streamed, substantially reducing CPU usage while an LLM is streaming its file output
 - Auto-approve for file read and write operations only applies to file within the workspace
 - Separate model selection/options for PLAN and ACT modes
 - Full support for Claude Sonnet 3.7 'extended thinking' mode with configurable token budget for thinking and max (output) tokens
