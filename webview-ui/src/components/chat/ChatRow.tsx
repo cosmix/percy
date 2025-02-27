@@ -159,7 +159,9 @@ const renderReasoningBlock = (
 								}}
 							/>
 						</span>
-						{text}
+						<div style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>
+							<Markdown markdown={text} />
+						</div>
 					</div>
 				) : (
 					<div style={{ display: "flex", alignItems: "center" }}>

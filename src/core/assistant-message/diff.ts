@@ -143,6 +143,121 @@ function blockAnchorFallbackMatch(originalContent: string, searchContent: string
 }
 
 /**
+ * A truly lightweight version of preview mode that minimizes CPU usage during streaming.
+ * This function is optimized for performance and only does the minimum required for visuals.
+ *
+ * Key improvements:
+ * 1. For new files: Continues to extract content from REPLACE blocks for streaming visibility
+ * 2. For existing files: Greatly simplified approach to avoid expensive operations
+ *
+ * @param diffContent - The diff content being processed
+ * @param originalContent - The original file content
+ * @returns A simplified preview of what the content might look like
+ */
+function previewModeConstructNewFileContent(diffContent: string, originalContent: string): string {
+	// If this is a new file (empty original content), we need to extract content from the diff
+	// This part remains to show content during streaming for new files
+	if (originalContent.length === 0) {
+		// For new files, extract content from the REPLACE blocks
+		let result = ""
+		let inReplace = false
+
+		const lines = diffContent.split("\n")
+		for (const line of lines) {
+			if (line === "=======") {
+				inReplace = true
+				continue
+			}
+
+			if (line === ">>>>>>> REPLACE") {
+				inReplace = false
+				continue
+			}
+
+			if (inReplace && line !== "<<<<<<< SEARCH") {
+				result += line + "\n"
+			}
+		}
+
+		return result
+	}
+
+	// For existing files, use a much simpler approach that avoids expensive operations
+	// Extract SEARCH and REPLACE blocks but with minimal processing
+	let result = originalContent
+	let currentSearchContent = ""
+	let currentReplaceContent = ""
+	let inSearch = false
+	let inReplace = false
+	let extractedBlocks: { search: string; replace: string }[] = []
+
+	const lines = diffContent.split("\n")
+
+	// First just extract all complete blocks without any matching
+	for (const line of lines) {
+		if (line === "<<<<<<< SEARCH") {
+			inSearch = true
+			currentSearchContent = ""
+			currentReplaceContent = ""
+			continue
+		}
+
+		if (line === "=======") {
+			inSearch = false
+			inReplace = true
+			continue
+		}
+
+		if (line === ">>>>>>> REPLACE") {
+			// We found a complete block, store it without trying to apply it yet
+			inSearch = false
+			inReplace = false
+
+			if (currentSearchContent && currentReplaceContent !== undefined) {
+				extractedBlocks.push({
+					search: currentSearchContent,
+					replace: currentReplaceContent,
+				})
+			}
+
+			currentSearchContent = ""
+			currentReplaceContent = ""
+			continue
+		}
+
+		// Accumulate content
+		if (inSearch) {
+			currentSearchContent += line + "\n"
+		} else if (inReplace) {
+			currentReplaceContent += line + "\n"
+		}
+	}
+
+	// If we have fewer than 3 blocks, try a simplified exact matching approach
+	// This gives visual feedback for simple changes without heavy processing
+	if (extractedBlocks.length > 0 && extractedBlocks.length < 3) {
+		for (const block of extractedBlocks) {
+			// Only attempt exact matching without any fallbacks or complex logic
+			const exactIndex = result.indexOf(block.search)
+			if (exactIndex !== -1) {
+				// Simple string replacement without tracking or updating positions
+				result = result.substring(0, exactIndex) + block.replace + result.substring(exactIndex + block.search.length)
+			}
+		}
+		return result
+	}
+
+	// For more complex cases or performance reasons, just return original content
+	// with a visual indicator that there are pending changes
+	if (extractedBlocks.length >= 3) {
+		// Add a simple indicator without any actual diffing
+		return originalContent + "\n\n[Changes will be applied when streaming completes]"
+	}
+
+	return originalContent
+}
+
+/**
  * This function reconstructs the file content by applying a streamed diff (in a
  * specialized SEARCH/REPLACE block format) to the original file content. It is designed
  * to handle both incremental updates and the final resulting file after all chunks have
@@ -356,45 +471,4 @@ export async function constructNewFileContent(
 	}
 
 	return result
-}
-
-/**
- * A simplified version of constructNewFileContent that doesn't perform expensive matching operations.
- * This is used during streaming mode to provide visual updates without the computational cost.
- *
- * @param diffContent - The diff content being processed
- * @param originalContent - The original file content
- * @returns A simplified preview of what the content might look like
- */
-function previewModeConstructNewFileContent(diffContent: string, originalContent: string): string {
-	// If this is a new file (empty original content), we need to extract content from the diff
-	if (originalContent.length === 0) {
-		// For new files, we need to extract content from the REPLACE blocks
-		let result = ""
-		let inReplace = false
-
-		const lines = diffContent.split("\n")
-		for (const line of lines) {
-			if (line === "=======") {
-				inReplace = true
-				continue
-			}
-
-			if (line === ">>>>>>> REPLACE") {
-				inReplace = false
-				continue
-			}
-
-			if (inReplace && line !== "<<<<<<< SEARCH") {
-				result += line + "\n"
-			}
-		}
-
-		return result
-	}
-
-	// For existing files, we just return the original content
-	// This maintains the visual appearance without doing expensive diffing
-	// The actual diffing will be performed when streaming is complete
-	return originalContent
 }
