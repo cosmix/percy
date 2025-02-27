@@ -779,7 +779,7 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 						const settingsFilter = message.text || ""
 						await vscode.commands.executeCommand(
 							"workbench.action.openSettings",
-							`@ext:saoudrizwan.percy ${settingsFilter}`.trim(), // trim whitespace if no settings filter
+							`@ext:org.cosmix.percy ${settingsFilter}`.trim(), // trim whitespace if no settings filter
 						)
 						break
 					}
