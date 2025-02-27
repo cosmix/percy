@@ -38,43 +38,74 @@ interface ChatTextAreaProps {
 }
 
 const PLAN_MODE_COLOR = "var(--vscode-inputValidation-warningBorder)"
+const ACT_MODE_COLOR = "var(--vscode-focusBorder)"
 
 const SwitchOption = styled.div<{ isActive: boolean }>`
-	padding: 2px 8px;
+	padding: 4px 8px;
 	color: ${(props) => (props.isActive ? "white" : "var(--vscode-input-foreground)")};
 	z-index: 1;
-	transition: color 0.2s ease;
+	transition:
+		color 0.2s ease,
+		font-weight 0.2s ease;
 	font-size: 12px;
+	font-weight: ${(props) => (props.isActive ? "600" : "400")};
 	width: 50%;
 	text-align: center;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 4px;
 
 	&:hover {
 		background-color: ${(props) => (!props.isActive ? "var(--vscode-toolbar-hoverBackground)" : "transparent")};
 	}
 `
 
-const SwitchContainer = styled.div<{ disabled: boolean }>`
+const SwitchContainer = styled.div<{ disabled: boolean; mode: "plan" | "act" }>`
 	display: flex;
 	align-items: center;
 	background-color: var(--vscode-editor-background);
-	border: 1px solid var(--vscode-input-border);
-	border-radius: 12px;
+	border: 1px solid ${(props) => (props.mode === "plan" ? PLAN_MODE_COLOR : ACT_MODE_COLOR)};
+	border-radius: 14px;
 	overflow: hidden;
 	cursor: ${(props) => (props.disabled ? "not-allowed" : "pointer")};
 	opacity: ${(props) => (props.disabled ? 0.5 : 1)};
-	transform: scale(0.85);
+	transform: scale(0.9);
 	transform-origin: right center;
 	margin-left: -10px; // compensate for the transform so flex spacing works
 	user-select: none; // Prevent text selection
+	box-shadow: 0 0 3px ${(props) => (props.mode === "plan" ? "rgba(255, 180, 0, 0.2)" : "rgba(35, 135, 255, 0.2)")};
+	transition:
+		border-color 0.3s ease,
+		box-shadow 0.3s ease;
 `
 
-const Slider = styled.div<{ isAct: boolean; isPlan?: boolean }>`
+const pulseAnimation = `
+	@keyframes pulseBorder {
+		0% { box-shadow: 0 0 8px rgba(35, 135, 255, 0.5); }
+		50% { box-shadow: 0 0 12px rgba(35, 135, 255, 0.8); }
+		100% { box-shadow: 0 0 8px rgba(35, 135, 255, 0.5); }
+	}
+	
+	@keyframes pulseBorderPlan {
+		0% { box-shadow: 0 0 8px rgba(255, 180, 0, 0.5); }
+		50% { box-shadow: 0 0 12px rgba(255, 180, 0, 0.8); }
+		100% { box-shadow: 0 0 8px rgba(255, 180, 0, 0.5); }
+	}
+`
+
+const Slider = styled.div<{ isAct: boolean; isPlan?: boolean; animate?: boolean }>`
+	${pulseAnimation}
 	position: absolute;
 	height: 100%;
 	width: 50%;
-	background-color: ${(props) => (props.isPlan ? PLAN_MODE_COLOR : "var(--vscode-focusBorder)")};
-	transition: transform 0.2s ease;
+	background-color: ${(props) => (props.isPlan ? PLAN_MODE_COLOR : ACT_MODE_COLOR)};
+	transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
 	transform: translateX(${(props) => (props.isAct ? "100%" : "0%")});
+	box-shadow: 0 0 8px ${(props) => (props.isPlan ? "rgba(255, 180, 0, 0.5)" : "rgba(35, 135, 255, 0.5)")};
+	border-radius: 10px;
+	animation: ${(props) =>
+		props.animate ? (props.isPlan ? "pulseBorderPlan 0.5s ease-in-out" : "pulseBorder 0.5s ease-in-out") : "none"};
 `
 
 const ButtonGroup = styled.div`
@@ -203,6 +234,12 @@ const ModelButtonContent = styled.div`
 	position: relative; /* Ensure z-index works properly */
 `
 
+const LightbulbIcon = styled.span`
+	color: #ffd700;
+	margin-left: 4px;
+	font-size: 10px;
+`
+
 const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 	(
 		{
@@ -222,6 +259,7 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 		const { filePaths, chatSettings, apiConfiguration, openRouterModels, platform } = useExtensionState()
 		const [isTextAreaFocused, setIsTextAreaFocused] = useState(false)
 		const [gitCommits, setGitCommits] = useState<any[]>([])
+		const [animateModeSwitch, setAnimateModeSwitch] = useState(false)
 
 		const [thumbnailsHeight, setThumbnailsHeight] = useState(0)
 		const [textAreaBaseHeight, setTextAreaBaseHeight] = useState<number | undefined>(undefined)
@@ -657,6 +695,11 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 				submitApiConfig()
 				changeModeDelay = 250 // necessary to let the api config update (we send message and wait for it to be saved) FIXME: this is a hack and we ideally should check for api config changes, then wait for it to be saved, before switching modes
 			}
+
+			// Trigger animation
+			setAnimateModeSwitch(true)
+			setTimeout(() => setAnimateModeSwitch(false), 500)
+
 			setTimeout(() => {
 				const newMode = chatSettings.mode === "plan" ? "act" : "plan"
 				vscode.postMessage({
@@ -740,6 +783,33 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 		useClickAway(modelSelectorRef, () => {
 			setShowModelSelector(false)
 		})
+
+		// Check if the current model supports reasoning/thinking mode
+		const hasReasoningCapability = useMemo(() => {
+			if (!apiConfiguration) return false
+
+			const { selectedProvider, selectedModelId } = normalizeApiConfiguration(apiConfiguration)
+
+			// Check for Claude 3.7 Sonnet with thinking enabled
+			if (
+				selectedProvider === "anthropic" &&
+				selectedModelId === "claude-3-7-sonnet-20250219" &&
+				apiConfiguration.anthropicThinking
+			) {
+				return true
+			}
+
+			// Check for OpenRouter models with supportsThinking flag
+			if (selectedProvider === "openrouter" && openRouterModels[selectedModelId]?.supportsThinking) {
+				return true
+			}
+
+			// Check for any model with supportsThinking flag in its ModelInfo
+			const modelId = selectedModelId || ""
+			const modelInfo = openRouterModels[modelId]
+
+			return !!modelInfo?.supportsThinking
+		}, [apiConfiguration, openRouterModels])
 
 		// Get model display name
 		const modelDisplayName = useMemo(() => {
@@ -1117,7 +1187,15 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 									// }}
 									tabIndex={0}
 									title={modelDisplayName}>
-									<ModelButtonContent>{modelDisplayName}</ModelButtonContent>
+									<ModelButtonContent>
+										{modelDisplayName}
+										{hasReasoningCapability && (
+											<LightbulbIcon
+												className="codicon codicon-lightbulb"
+												title="This model supports reasoning/thinking mode"
+											/>
+										)}
+									</ModelButtonContent>
 								</ModelDisplayButton>
 							</ModelButtonWrapper>
 							{showModelSelector && (
@@ -1141,18 +1219,29 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 						visible={shownTooltipMode !== null}
 						tipText={`In ${shownTooltipMode === "act" ? "Act" : "Plan"}  mode, Percy will ${shownTooltipMode === "act" ? "complete the task immediately" : "gather information to architect a plan"}`}
 						hintText={`Toggle w/ ${metaKeyChar}+Shift+A`}>
-						<SwitchContainer data-testid="mode-switch" disabled={false} onClick={onModeToggle}>
-							<Slider isAct={chatSettings.mode === "act"} isPlan={chatSettings.mode === "plan"} />
+						<SwitchContainer
+							data-testid="mode-switch"
+							disabled={false}
+							mode={chatSettings.mode}
+							onClick={onModeToggle}>
+							<Slider
+								isAct={chatSettings.mode === "act"}
+								isPlan={chatSettings.mode === "plan"}
+								animate={animateModeSwitch}
+							/>
+
 							<SwitchOption
 								isActive={chatSettings.mode === "plan"}
 								onMouseOver={() => setShownTooltipMode("plan")}
 								onMouseLeave={() => setShownTooltipMode(null)}>
+								<span className="codicon codicon-notebook" style={{ fontSize: "11px" }} />
 								Plan
 							</SwitchOption>
 							<SwitchOption
 								isActive={chatSettings.mode === "act"}
 								onMouseOver={() => setShownTooltipMode("act")}
 								onMouseLeave={() => setShownTooltipMode(null)}>
+								<span className="codicon codicon-play" style={{ fontSize: "11px" }} />
 								Act
 							</SwitchOption>
 						</SwitchContainer>

@@ -1,4 +1,4 @@
-import { describe, it } from "mocha"
+import "mocha"
 import "should"
 import { findLastIndex, findLast } from "./array"
 
