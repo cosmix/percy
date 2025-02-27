@@ -1725,7 +1725,7 @@ export class Percy {
 
 						const accessAllowed = this.clineIgnoreController.validateAccess(relPath)
 						if (!accessAllowed) {
-							await this.say("clineignore_error", relPath)
+							await this.say("percyignore_error", relPath)
 							pushToolResult(formatResponse.toolError(formatResponse.clineIgnoreError(relPath)))
 
 							break
@@ -2019,7 +2019,7 @@ export class Percy {
 
 								const accessAllowed = this.clineIgnoreController.validateAccess(relPath)
 								if (!accessAllowed) {
-									await this.say("clineignore_error", relPath)
+									await this.say("percyignore_error", relPath)
 									pushToolResult(formatResponse.toolError(formatResponse.clineIgnoreError(relPath)))
 
 									break
@@ -2489,7 +2489,7 @@ export class Percy {
 
 								const ignoredFileAttemptedToAccess = this.clineIgnoreController.validateCommand(command)
 								if (ignoredFileAttemptedToAccess) {
-									await this.say("clineignore_error", ignoredFileAttemptedToAccess)
+									await this.say("percyignore_error", ignoredFileAttemptedToAccess)
 									pushToolResult(
 										formatResponse.toolError(formatResponse.clineIgnoreError(ignoredFileAttemptedToAccess)),
 									)

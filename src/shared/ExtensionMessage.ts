@@ -129,7 +129,7 @@ export type PercySay =
 	| "use_mcp_server"
 	| "diff_error"
 	| "deleted_api_reqs"
-	| "clineignore_error"
+	| "percyignore_error"
 	| "checkpoint_created"
 
 export interface PercySayTool {
