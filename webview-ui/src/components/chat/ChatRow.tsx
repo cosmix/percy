@@ -26,20 +26,19 @@ import McpResourceRow from "../mcp/McpResourceRow"
 import McpToolRow from "../mcp/McpToolRow"
 import { highlightMentions } from "./TaskHeader"
 
-const throb = keyframes`
-  0%, 100% { opacity: 0.3; }
-  50% { opacity: 1; }
+const lightBulbPulse = keyframes`
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.1); }
 `
 
-const ThrobbingDots = styled.span`
+const ThinkingLightBulb = styled.span`
 	display: inline-flex;
 	align-items: center;
+	margin-left: 6px;
 
-	&::after {
-		content: "...";
-		animation: ${throb} 1.5s infinite ease-in-out;
-		letter-spacing: 1px;
-		margin-left: 2px;
+	.codicon-lightbulb {
+		animation: ${lightBulbPulse} 1.8s infinite ease-in-out;
+		color: var(--vscode-editorLightBulb-foreground, #ffcc00);
 	}
 `
 
@@ -148,7 +147,7 @@ const renderReasoningBlock = (
 				}}>
 				{isReasoningExpanded ? (
 					<div style={{ marginTop: -3 }}>
-						<span style={{ fontWeight: "bold", display: "block", marginBottom: "4px" }}>
+						<span style={{ fontWeight: "bold", display: "block", marginBottom: "8px" }}>
 							Reasoning
 							<span
 								className="codicon codicon-chevron-down"
@@ -159,14 +158,18 @@ const renderReasoningBlock = (
 								}}
 							/>
 						</span>
-						<div style={{ wordBreak: "break-word", overflowWrap: "anywhere" }}>
+						<div style={{ wordBreak: "break-word", overflowWrap: "anywhere", paddingBottom: "6px" }}>
 							<Markdown markdown={text} />
 						</div>
 					</div>
 				) : (
 					<div style={{ display: "flex", alignItems: "center" }}>
 						<span style={{ fontWeight: "bold", marginRight: "4px" }}>Reasoning</span>
-						{isActive && <ThrobbingDots />}
+						{isActive && (
+							<ThinkingLightBulb>
+								<span className="codicon codicon-lightbulb" />
+							</ThinkingLightBulb>
+						)}
 						<div style={{ flex: 1 }}></div>
 						<span
 							className="codicon codicon-chevron-right"
