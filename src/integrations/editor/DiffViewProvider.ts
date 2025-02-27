@@ -25,6 +25,8 @@ export class DiffViewProvider {
 	private preDiagnostics: [vscode.Uri, vscode.Diagnostic[]][] = []
 	private bufferedContent: string | undefined
 	private _isStreamingMode: boolean = false
+	// Cache for diff module to improve performance during streaming
+	private _diffModuleCache: any
 
 	// Public getter for streaming mode state
 	get isStreamingMode(): boolean {
@@ -89,22 +91,41 @@ export class DiffViewProvider {
 			throw new Error("Required values not set")
 		}
 
+		// Measure performance if needed
+		const startTime = performance.now()
+
 		if (this.isStreamingMode && !isFinal) {
-			// In streaming mode, just buffer the content and update visual display
+			// Just buffer the content during streaming mode
 			this.bufferedContent = accumulatedContent
 
 			// Update visual display without actual diffing
+			// Important: For new files, ensure content is shown during streaming
 			await this.updateVisualPreview(accumulatedContent)
+
+			if (this.editType === "create") {
+				console.log("Streaming content for new file, showing preview")
+			}
+
+			// Performance logging if needed
+			const endTime = performance.now()
+			if (endTime - startTime > 50) {
+				console.log(`Streaming preview update took ${endTime - startTime}ms`)
+			}
 			return
 		}
 
 		// For final update or non-streaming mode, perform the actual diff
+		console.log(`Performing final diff (streaming mode: ${this.isStreamingMode}, isFinal: ${isFinal})`)
 		this.newContent = accumulatedContent
-		const accumulatedLines = accumulatedContent.split("\n")
+
+		// Process content
+		let processedContent = accumulatedContent
 		if (!isFinal) {
-			accumulatedLines.pop() // remove the last partial line only if it's not the final update
+			// Remove the last partial line only if it's not the final update
+			const lines = processedContent.split("\n")
+			lines.pop()
+			processedContent = lines.join("\n")
 		}
-		const diffLines = accumulatedLines.slice(this.streamedLines.length)
 
 		const diffEditor = this.activeDiffEditor
 		const document = diffEditor?.document
@@ -112,27 +133,66 @@ export class DiffViewProvider {
 			throw new Error("User closed text editor, unable to edit file...")
 		}
 
-		// Place cursor at the beginning of the diff editor to keep it out of the way of the stream animation
+		// Place cursor at the beginning of the diff editor
 		const beginningOfDocument = new vscode.Position(0, 0)
 		diffEditor.selection = new vscode.Selection(beginningOfDocument, beginningOfDocument)
 
-		for (let i = 0; i < diffLines.length; i++) {
-			const currentLine = this.streamedLines.length + i
-			// Replace all content up to the current line with accumulated lines
-			// This is necessary (as compared to inserting one line at a time) to handle cases where html tags on previous lines are auto closed for example
+		// Performance optimization: Calculate the lines that need updating
+		const newLines = processedContent.split("\n")
+		const oldLines = this.streamedLines.map((line, i) => (i < this.streamedLines.length ? this.streamedLines[i] : ""))
+
+		// Instead of updating line by line, we'll batch the updates more efficiently
+		if (isFinal || newLines.length - this.streamedLines.length > 10) {
+			// For final update or large changes, do one edit operation
 			const edit = new vscode.WorkspaceEdit()
-			const rangeToReplace = new vscode.Range(0, 0, currentLine + 1, 0)
-			const contentToReplace = accumulatedLines.slice(0, currentLine + 1).join("\n") + "\n"
+			const rangeToReplace = new vscode.Range(0, 0, document.lineCount, 0)
+
+			// Ensure consistency with line endings
+			let contentToReplace = processedContent
+			if (contentToReplace.length > 0 && !contentToReplace.endsWith("\n")) {
+				contentToReplace += "\n"
+			}
+
 			edit.replace(document.uri, rangeToReplace, contentToReplace)
 			await vscode.workspace.applyEdit(edit)
-			// Update decorations
-			this.activeLineController.setActiveLine(currentLine)
-			this.fadedOverlayController.updateOverlayAfterLine(currentLine, document.lineCount)
-			// Scroll to the current line
-			this.scrollEditorToLine(currentLine)
+
+			// Update decorations for the visible portion
+			const visibleLines = Math.min(newLines.length, 30) // Focus on visible lines
+			for (let i = 0; i < visibleLines; i++) {
+				this.activeLineController.setActiveLine(newLines.length - visibleLines + i)
+			}
+			this.fadedOverlayController.updateOverlayAfterLine(newLines.length - 1, document.lineCount)
+
+			// Scroll to the end of content
+			if (newLines.length > 0) {
+				this.scrollEditorToLine(newLines.length - 1)
+			}
+		} else {
+			// For smaller updates, batch every 5 lines for better performance
+			const batchSize = 5
+			for (let i = 0; i < newLines.length - this.streamedLines.length; i += batchSize) {
+				const currentStartLine = this.streamedLines.length + i
+				const batchEndIndex = Math.min(currentStartLine + batchSize, newLines.length)
+
+				// Replace content in batches
+				const edit = new vscode.WorkspaceEdit()
+				const rangeToReplace = new vscode.Range(0, 0, Math.min(batchEndIndex, document.lineCount), 0)
+				const contentToReplace = newLines.slice(0, batchEndIndex).join("\n") + "\n"
+				edit.replace(document.uri, rangeToReplace, contentToReplace)
+				await vscode.workspace.applyEdit(edit)
+
+				// Update decorations
+				this.activeLineController.setActiveLine(batchEndIndex - 1)
+				this.fadedOverlayController.updateOverlayAfterLine(batchEndIndex - 1, document.lineCount)
+
+				// Scroll to the current line
+				this.scrollEditorToLine(batchEndIndex - 1)
+			}
 		}
+
 		// Update the streamedLines with the new accumulated content
-		this.streamedLines = accumulatedLines
+		this.streamedLines = newLines
+
 		if (isFinal) {
 			// Handle any remaining lines if the new content is shorter than the original
 			if (this.streamedLines.length < document.lineCount) {
@@ -140,17 +200,23 @@ export class DiffViewProvider {
 				edit.delete(document.uri, new vscode.Range(this.streamedLines.length, 0, document.lineCount, 0))
 				await vscode.workspace.applyEdit(edit)
 			}
+
 			// Add empty last line if original content had one
 			const hasEmptyLastLine = this.originalContent?.endsWith("\n")
-			if (hasEmptyLastLine) {
-				const accumulatedLines = accumulatedContent.split("\n")
-				if (accumulatedLines[accumulatedLines.length - 1] !== "") {
-					accumulatedContent += "\n"
-				}
+			if (hasEmptyLastLine && !accumulatedContent.endsWith("\n")) {
+				// Create a final edit to ensure proper line ending consistency
+				const edit = new vscode.WorkspaceEdit()
+				edit.replace(document.uri, new vscode.Range(document.lineCount, 0, document.lineCount, 0), "\n")
+				await vscode.workspace.applyEdit(edit)
 			}
-			// Clear all decorations at the end (before applying final edit)
+
+			// Clear all decorations at the end (after applying final edit)
 			this.fadedOverlayController.clear()
 			this.activeLineController.clear()
+
+			// Log performance for the final diff operation
+			const endTime = performance.now()
+			console.log(`Final diff update took ${endTime - startTime}ms`)
 		}
 	}
 
@@ -360,6 +426,21 @@ export class DiffViewProvider {
 	}
 
 	private async updateVisualPreview(accumulatedContent: string) {
+		// Performance optimization: Only update preview if content has changed significantly
+		// This reduces the number of expensive operations performed during streaming
+		if (this.streamedLines.length > 0) {
+			const prevLines = this.streamedLines.length
+			const newLines = accumulatedContent.split("\n").length
+
+			// If fewer than 5 new lines were added and this isn't a large document,
+			// skip this update to improve performance
+			if (newLines - prevLines < 5 && newLines < 100) {
+				// Still update streamedLines to track progress
+				this.streamedLines = accumulatedContent.split("\n")
+				return
+			}
+		}
+
 		const accumulatedLines = accumulatedContent.split("\n")
 		const diffLines = accumulatedLines.slice(this.streamedLines.length)
 
@@ -373,26 +454,73 @@ export class DiffViewProvider {
 		const beginningOfDocument = new vscode.Position(0, 0)
 		diffEditor.selection = new vscode.Selection(beginningOfDocument, beginningOfDocument)
 
-		// For new files, we need to actually update the document content
-		// For existing files, we just update decorations to save CPU cycles
 		const isNewFile = this.editType === "create"
 
-		if (isNewFile) {
-			// For new files, we need to update the actual document content
-			// similar to the non-streaming update method but without expensive diffing
-			const edit = new vscode.WorkspaceEdit()
-			const rangeToReplace = new vscode.Range(0, 0, document.lineCount, 0)
-			const contentToReplace = accumulatedLines.join("\n") + "\n"
-			edit.replace(document.uri, rangeToReplace, contentToReplace)
-			await vscode.workspace.applyEdit(edit)
+		// Performance optimization: Cache module import to avoid repeated imports
+		// Use a static cache to avoid re-importing the module on each update
+		if (!this._diffModuleCache) {
+			// Store the module for future use
+			this._diffModuleCache = await import("../../core/assistant-message/diff")
 		}
 
-		// Update decorations
-		for (let i = 0; i < diffLines.length; i++) {
+		// Use lightweight preview for all files during streaming
+		if (this.originalContent !== undefined) {
+			try {
+				// Get the preview content using our optimized preview function
+				// This avoids expensive diffing operations but still shows changes
+				const previewContent = await this._diffModuleCache.constructNewFileContent(
+					accumulatedContent,
+					this.originalContent || "",
+					false, // Not final
+					true, // Use deferred matching (preview mode)
+				)
+
+				// Performance optimization: Only update if content has changed significantly
+				// Calculate a hash of the first and last chunk of the content to quickly check for changes
+				const currentText = document.getText()
+				const contentChanged =
+					// Always update for small documents or significant changes in size
+					Math.abs(currentText.length - previewContent.length) > 50 ||
+					// For large documents, do a quick check of beginning and end
+					currentText.substring(0, 100) !== previewContent.substring(0, 100) ||
+					(previewContent.length > 200 &&
+						currentText.substring(currentText.length - 100) !== previewContent.substring(previewContent.length - 100))
+
+				if (contentChanged) {
+					// Use a more efficient edit approach: batch updates instead of line-by-line
+					const edit = new vscode.WorkspaceEdit()
+					const rangeToReplace = new vscode.Range(0, 0, document.lineCount, 0)
+					edit.replace(document.uri, rangeToReplace, previewContent)
+					await vscode.workspace.applyEdit(edit)
+				}
+			} catch (error) {
+				console.error("Error generating preview content:", error)
+
+				// Fallback to simpler preview for existing files
+				if (isNewFile) {
+					// For new files, we still need to update the document content
+					const edit = new vscode.WorkspaceEdit()
+					const rangeToReplace = new vscode.Range(0, 0, document.lineCount, 0)
+					const contentToReplace = accumulatedLines.join("\n") + "\n"
+					edit.replace(document.uri, rangeToReplace, contentToReplace)
+					await vscode.workspace.applyEdit(edit)
+				}
+				// For existing files, in fallback mode we just show the decorations
+			}
+		}
+
+		// Performance optimization: Update decorations less frequently for large diffs
+		// Only update a subset of lines for better performance
+		const batchSize = diffLines.length > 50 ? 10 : 1
+		for (let i = 0; i < diffLines.length; i += batchSize) {
 			const currentLine = this.streamedLines.length + i
 			this.activeLineController!.setActiveLine(currentLine)
-			this.fadedOverlayController!.updateOverlayAfterLine(currentLine, document.lineCount)
-			this.scrollEditorToLine(currentLine)
+
+			// Only update overlay for last line in batch to reduce performance impact
+			if (i + batchSize >= diffLines.length || i % (batchSize * 5) === 0) {
+				this.fadedOverlayController!.updateOverlayAfterLine(currentLine, document.lineCount)
+				this.scrollEditorToLine(currentLine)
+			}
 		}
 
 		// Update the tracked streamed lines
@@ -424,10 +552,34 @@ export class DiffViewProvider {
 	// Finalize the streamed content when streaming is complete
 	async finalizeStreamedContent() {
 		if (this.bufferedContent) {
-			// Now perform the actual diff and update document
-			await this.update(this.bufferedContent, true)
-			this.bufferedContent = undefined
-			this._isStreamingMode = false
+			try {
+				// Set streaming mode to false before doing the final update
+				// This ensures all matching logic is used during finalization
+				this._isStreamingMode = false
+
+				// Clear any decorations before applying the final content
+				// This helps prevent visual distraction during the final update
+				if (this.fadedOverlayController) {
+					this.fadedOverlayController.clear()
+				}
+				if (this.activeLineController) {
+					this.activeLineController.clear()
+				}
+
+				// Now perform the actual diff and update document with final content
+				await this.update(this.bufferedContent, true)
+				this.bufferedContent = undefined
+			} catch (error) {
+				// Log the error but don't throw it, since we still need to reset state
+				console.error("Error during finalization of streamed content:", error)
+
+				// If finalization fails, ensure the streaming mode is still turned off
+				this._isStreamingMode = false
+				this.bufferedContent = undefined
+
+				// Re-throw the error to ensure it's handled by the caller
+				throw error
+			}
 		}
 	}
 
