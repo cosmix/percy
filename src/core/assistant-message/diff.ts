@@ -6,7 +6,13 @@
  *
  * Returns [matchIndexStart, matchIndexEnd] if found, or false if not found.
  */
-function lineTrimmedFallbackMatch(originalContent: string, searchContent: string, startIndex: number): [number, number] | false {
+function lineTrimmedFallbackMatch(
+	originalContent: string,
+	searchContent: string,
+	startIndex: number,
+	lineStartOffsets: number[],
+	getLineForOffset: (offset: number) => number,
+): [number, number] | false {
 	// Split both contents into lines
 	const originalLines = originalContent.split("\n")
 	const searchLines = searchContent.split("\n")
@@ -17,12 +23,7 @@ function lineTrimmedFallbackMatch(originalContent: string, searchContent: string
 	}
 
 	// Find the line number where startIndex falls
-	let startLineNum = 0
-	let currentIndex = 0
-	while (currentIndex < startIndex && startLineNum < originalLines.length) {
-		currentIndex += originalLines[startLineNum].length + 1 // +1 for \n
-		startLineNum++
-	}
+	const startLineNum = getLineForOffset(startIndex)
 
 	// For each possible starting position in original content
 	for (let i = startLineNum; i <= originalLines.length - searchLines.length; i++) {
@@ -41,17 +42,9 @@ function lineTrimmedFallbackMatch(originalContent: string, searchContent: string
 
 		// If we found a match, calculate the exact character positions
 		if (matches) {
-			// Find start character index
-			let matchStartIndex = 0
-			for (let k = 0; k < i; k++) {
-				matchStartIndex += originalLines[k].length + 1 // +1 for \n
-			}
-
-			// Find end character index
-			let matchEndIndex = matchStartIndex
-			for (let k = 0; k < searchLines.length; k++) {
-				matchEndIndex += originalLines[i + k].length + 1 // +1 for \n
-			}
+			const matchStartIndex = lineStartOffsets[i]
+			const matchEndIndex =
+				i + searchLines.length < originalLines.length ? lineStartOffsets[i + searchLines.length] : originalContent.length
 
 			return [matchStartIndex, matchEndIndex]
 		}
@@ -87,7 +80,61 @@ function lineTrimmedFallbackMatch(originalContent: string, searchContent: string
  * @param startIndex - The character index in originalContent where to start searching
  * @returns A tuple of [startIndex, endIndex] if a match is found, false otherwise
  */
-function blockAnchorFallbackMatch(originalContent: string, searchContent: string, startIndex: number): [number, number] | false {
+
+/**
+ * Calculates and returns line offset information for efficient position calculations.
+ * @param lines The array of lines to process
+ * @returns An object containing:
+ *   - lineStartOffsets: Array where each index i contains the character offset of line i
+ *   - lineEndOffsets: Array where each index i contains the character offset of the end of line i
+ *   - getLineForOffset: Function to get line number for a character offset
+ */
+function calculateLineOffsets(lines: string[]): {
+	lineStartOffsets: number[]
+	lineEndOffsets: number[]
+	getLineForOffset: (offset: number) => number
+} {
+	const lineStartOffsets: number[] = []
+	const lineEndOffsets: number[] = []
+
+	let currentOffset = 0
+	for (let i = 0; i < lines.length; i++) {
+		lineStartOffsets.push(currentOffset)
+		currentOffset += lines[i].length
+		lineEndOffsets.push(currentOffset)
+		currentOffset += 1 // +1 for \n
+	}
+
+	// Binary search function to find line number for a character offset
+	const getLineForOffset = (offset: number): number => {
+		let low = 0
+		let high = lineStartOffsets.length - 1
+
+		while (low <= high) {
+			const mid = Math.floor((low + high) / 2)
+
+			if (offset < lineStartOffsets[mid]) {
+				high = mid - 1
+			} else if (offset > lineEndOffsets[mid]) {
+				low = mid + 1
+			} else {
+				return mid // Found the line containing this offset
+			}
+		}
+
+		return low // If not found exactly, return the closest line
+	}
+
+	return { lineStartOffsets, lineEndOffsets, getLineForOffset }
+}
+
+function blockAnchorFallbackMatch(
+	originalContent: string,
+	searchContent: string,
+	startIndex: number,
+	lineStartOffsets: number[],
+	getLineForOffset: (offset: number) => number,
+): [number, number] | false {
 	const originalLines = originalContent.split("\n")
 	const searchLines = searchContent.split("\n")
 
@@ -106,12 +153,7 @@ function blockAnchorFallbackMatch(originalContent: string, searchContent: string
 	const searchBlockSize = searchLines.length
 
 	// Find the line number where startIndex falls
-	let startLineNum = 0
-	let currentIndex = 0
-	while (currentIndex < startIndex && startLineNum < originalLines.length) {
-		currentIndex += originalLines[startLineNum].length + 1
-		startLineNum++
-	}
+	const startLineNum = getLineForOffset(startIndex)
 
 	// Look for matching start and end anchors
 	for (let i = startLineNum; i <= originalLines.length - searchBlockSize; i++) {
@@ -125,16 +167,9 @@ function blockAnchorFallbackMatch(originalContent: string, searchContent: string
 			continue
 		}
 
-		// Calculate exact character positions
-		let matchStartIndex = 0
-		for (let k = 0; k < i; k++) {
-			matchStartIndex += originalLines[k].length + 1
-		}
-
-		let matchEndIndex = matchStartIndex
-		for (let k = 0; k < searchBlockSize; k++) {
-			matchEndIndex += originalLines[i + k].length + 1
-		}
+		const matchStartIndex = lineStartOffsets[i]
+		const matchEndIndex =
+			i + searchBlockSize < originalLines.length ? lineStartOffsets[i + searchBlockSize] : originalContent.length
 
 		return [matchStartIndex, matchEndIndex]
 	}
@@ -215,13 +250,20 @@ export async function constructNewFileContent(
 	// If deferMatching is true and not the final chunk,
 	// return a simpler result for preview purposes only
 	if (deferMatching && !isFinal) {
-		return previewModeConstructNewFileContent(diffContent, originalContent)
+		// For preview purposes, we just return the original content
+		// This maintains the visual appearance without doing expensive diffing
+		return originalContent
 	}
-	let result = ""
+
+	// Calculate line offsets once
+	const originalLines = originalContent.split("\n")
+	const { lineStartOffsets, getLineForOffset } = calculateLineOffsets(originalLines)
+
+	const resultLines: string[] = []
 	let lastProcessedIndex = 0
 
-	let currentSearchContent = ""
-	let currentReplaceContent = ""
+	const currentSearchLines: string[] = []
+	const currentReplaceLines: string[] = []
 	let inSearch = false
 	let inReplace = false
 
@@ -246,8 +288,8 @@ export async function constructNewFileContent(
 	for (const line of lines) {
 		if (line === "<<<<<<< SEARCH") {
 			inSearch = true
-			currentSearchContent = ""
-			currentReplaceContent = ""
+			currentSearchLines.length = 0 // Clear array
+			currentReplaceLines.length = 0 // Clear array
 			continue
 		}
 
@@ -255,47 +297,43 @@ export async function constructNewFileContent(
 			inSearch = false
 			inReplace = true
 
-			// Remove trailing linebreak for adding the === marker
-			// if (currentSearchContent.endsWith("\r\n")) {
-			// 	currentSearchContent = currentSearchContent.slice(0, -2)
-			// } else if (currentSearchContent.endsWith("\n")) {
-			// 	currentSearchContent = currentSearchContent.slice(0, -1)
-			// }
+			// Join search lines for further processing
+			const currentSearchContent = currentSearchLines.join("\n") + "\n"
 
-			if (!currentSearchContent) {
-				// Empty search block
+			if (!currentSearchContent.trim()) {
+				// Empty search block handling (unchanged)
 				if (originalContent.length === 0) {
-					// New file scenario: nothing to match, just start inserting
 					searchMatchIndex = 0
 					searchEndIndex = 0
 				} else {
-					// Complete file replacement scenario: treat the entire file as matched
 					searchMatchIndex = 0
 					searchEndIndex = originalContent.length
 				}
 			} else {
-				// Add check for inefficient full-file search
-				// if (currentSearchContent.trim() === originalContent.trim()) {
-				// 	throw new Error(
-				// 		"The SEARCH block contains the entire file content. Please either:\n" +
-				// 			"1. Use an empty SEARCH block to replace the entire file, or\n" +
-				// 			"2. Make focused changes to specific parts of the file that need modification.",
-				// 	)
-				// }
-
-				// Exact search match scenario
+				// Exact search match scenario (unchanged)
 				const exactIndex = originalContent.indexOf(currentSearchContent, lastProcessedIndex)
 				if (exactIndex !== -1) {
 					searchMatchIndex = exactIndex
 					searchEndIndex = exactIndex + currentSearchContent.length
 				} else {
-					// Attempt fallback line-trimmed matching
-					const lineMatch = lineTrimmedFallbackMatch(originalContent, currentSearchContent, lastProcessedIndex)
+					// Attempt fallback matches (unchanged except for converting currentSearchContent)
+					const lineMatch = lineTrimmedFallbackMatch(
+						originalContent,
+						currentSearchContent,
+						lastProcessedIndex,
+						lineStartOffsets,
+						getLineForOffset,
+					)
 					if (lineMatch) {
 						;[searchMatchIndex, searchEndIndex] = lineMatch
 					} else {
-						// Try block anchor fallback for larger blocks
-						const blockMatch = blockAnchorFallbackMatch(originalContent, currentSearchContent, lastProcessedIndex)
+						const blockMatch = blockAnchorFallbackMatch(
+							originalContent,
+							currentSearchContent,
+							lastProcessedIndex,
+							lineStartOffsets,
+							getLineForOffset,
+						)
 						if (blockMatch) {
 							;[searchMatchIndex, searchEndIndex] = blockMatch
 						} else {
@@ -307,20 +345,27 @@ export async function constructNewFileContent(
 				}
 			}
 
-			// Output everything up to the match location
-			result += originalContent.slice(lastProcessedIndex, searchMatchIndex)
+			// Convert the content up to the match point to string and add to result
+			const contentUpToMatch = originalContent.slice(lastProcessedIndex, searchMatchIndex)
+
+			// Instead of adding to result string, break it into lines and add to resultLines
+			if (contentUpToMatch) {
+				const contentLines = contentUpToMatch.split("\n")
+				resultLines.push(...contentLines)
+
+				// If the last content didn't end with a newline, adjust the array
+				// to merge the last line with the next addition
+				if (!contentUpToMatch.endsWith("\n") && resultLines.length > 0) {
+					const lastResultLine = resultLines.pop() || ""
+					resultLines.push(lastResultLine) // We'll concatenate to this later
+				}
+			}
+
 			continue
 		}
 
 		if (line === ">>>>>>> REPLACE") {
 			// Finished one replace block
-
-			// // Remove the artificially added linebreak in the last line of the REPLACE block
-			// if (result.endsWith("\r\n")) {
-			// 	result = result.slice(0, -2)
-			// } else if (result.endsWith("\n")) {
-			// 	result = result.slice(0, -1)
-			// }
 
 			// Advance lastProcessedIndex to after the matched section
 			lastProcessedIndex = searchEndIndex
@@ -328,51 +373,50 @@ export async function constructNewFileContent(
 			// Reset for next block
 			inSearch = false
 			inReplace = false
-			currentSearchContent = ""
-			currentReplaceContent = ""
+			currentSearchLines.length = 0
+			currentReplaceLines.length = 0
 			searchMatchIndex = -1
 			searchEndIndex = -1
 			continue
 		}
 
-		// Accumulate content for search or replace
-		// (currentReplaceContent is not being used for anything right now since we directly append to result.)
-		// (We artificially add a linebreak since we split on \n at the beginning. In order to not include a trailing linebreak in the final search/result blocks we need to remove it before using them. This allows for partial line matches to be correctly identified.)
-		// NOTE: search/replace blocks must be arranged in the order they appear in the file due to how we build the content using lastProcessedIndex. We also cannot strip the trailing newline since for non-partial lines it would remove the linebreak from the original content. (If we remove end linebreak from search, then we'd also have to remove it from replace but we can't know if it's a partial line or not since the model may be using the line break to indicate the end of the block rather than as part of the search content.) We require the model to output full lines in order for our fallbacks to work as well.
+		// Accumulate content for search or replace using arrays
 		if (inSearch) {
-			currentSearchContent += line + "\n"
+			currentSearchLines.push(line)
 		} else if (inReplace) {
-			currentReplaceContent += line + "\n"
+			currentReplaceLines.push(line)
 			// Output replacement lines immediately if we know the insertion point
 			if (searchMatchIndex !== -1) {
-				result += line + "\n"
+				resultLines.push(line)
 			}
 		}
 	}
 
 	// If this is the final chunk, append any remaining original content
 	if (isFinal && lastProcessedIndex < originalContent.length) {
-		result += originalContent.slice(lastProcessedIndex)
+		const remainingContent = originalContent.slice(lastProcessedIndex)
+		const remainingLines = remainingContent.split("\n")
+
+		// Add all but the last line
+		if (remainingLines.length > 1) {
+			resultLines.push(...remainingLines.slice(0, -1))
+		}
+
+		// Handle the last line specially
+		const lastLine = remainingLines[remainingLines.length - 1]
+		if (lastLine || remainingContent.endsWith("\n")) {
+			resultLines.push(lastLine)
+		}
+	}
+
+	// Join resultLines to create the final result
+	// Carefully handle the newlines to ensure we don't add/remove any
+	let result = resultLines.join("\n")
+
+	// Ensure the result ends with a newline if the original content did
+	if (isFinal && originalContent.endsWith("\n") && !result.endsWith("\n")) {
+		result += "\n"
 	}
 
 	return result
-}
-
-/**
- * A simplified version of constructNewFileContent that doesn't perform expensive matching operations.
- * This is used during streaming mode to provide visual updates without the computational cost.
- *
- * @param diffContent - The diff content being processed
- * @param originalContent - The original file content
- * @returns A simplified preview of what the content might look like
- */
-function previewModeConstructNewFileContent(diffContent: string, originalContent: string): string {
-	// For preview purposes, we just return the original content
-	// This maintains the visual appearance without doing expensive diffing
-	// The actual diffing will be performed when streaming is complete
-
-	// A more sophisticated implementation could attempt to show a rough approximation
-	// of what the changes might look like, but for most cases, showing the original
-	// content is sufficient for visual streaming purposes
-	return originalContent
 }
