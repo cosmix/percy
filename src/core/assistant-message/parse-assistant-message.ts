@@ -55,7 +55,11 @@ export function parseAssistantMessage(assistantMessage: string) {
 
 				// special case for write_to_file where file contents could contain the closing tag, in which case the param would have closed and we end up with the rest of the file contents here. To work around this, we get the string between the starting content tag and the LAST content tag.
 				const contentParamName: ToolParamName = "content"
-				if (currentToolUse.name === "write_to_file" && accumulator.endsWith(`</${contentParamName}>`)) {
+				// Check for both complete closing tag and partial closing tag (which can happen if stream is interrupted)
+				if (
+					currentToolUse.name === "write_to_file" &&
+					(accumulator.endsWith(`</${contentParamName}>`) || accumulator.endsWith(`</${contentParamName}`))
+				) {
 					const toolContent = accumulator.slice(currentToolUseStartIndex)
 					const contentStartTag = `<${contentParamName}>`
 					const contentEndTag = `</${contentParamName}>`
