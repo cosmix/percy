@@ -38,11 +38,10 @@ interface ChatTextAreaProps {
 }
 
 const PLAN_MODE_COLOR = "var(--vscode-inputValidation-warningBorder)"
-const ACT_MODE_COLOR = "var(--vscode-focusBorder)"
 
 const SwitchOption = styled.div<{ isActive: boolean }>`
 	padding: 4px 8px;
-	color: ${(props) => (props.isActive ? "white" : "var(--vscode-input-foreground)")};
+	color: ${(props) => (props.isActive ? "var(--vscode-button-foreground)" : "var(--vscode-input-foreground)")};
 	z-index: 1;
 	transition:
 		color 0.2s ease,
@@ -55,17 +54,14 @@ const SwitchOption = styled.div<{ isActive: boolean }>`
 	align-items: center;
 	justify-content: center;
 	gap: 4px;
-
-	&:hover {
-		background-color: ${(props) => (!props.isActive ? "var(--vscode-toolbar-hoverBackground)" : "transparent")};
-	}
+	background-color: ${(props) => (!props.isActive ? "var(--vscode-button-foreground)" : "var(--vscode-button-background)")};
 `
 
 const SwitchContainer = styled.div<{ disabled: boolean; mode: "plan" | "act" }>`
 	display: flex;
 	align-items: center;
 	background-color: var(--vscode-editor-background);
-	border: 1px solid ${(props) => (props.mode === "plan" ? PLAN_MODE_COLOR : ACT_MODE_COLOR)};
+	border: 1px solid ${PLAN_MODE_COLOR};
 	border-radius: 14px;
 	overflow: hidden;
 	cursor: ${(props) => (props.disabled ? "not-allowed" : "pointer")};
@@ -74,10 +70,11 @@ const SwitchContainer = styled.div<{ disabled: boolean; mode: "plan" | "act" }>`
 	transform-origin: right center;
 	margin-left: -10px; // compensate for the transform so flex spacing works
 	user-select: none; // Prevent text selection
-	box-shadow: 0 0 3px ${(props) => (props.mode === "plan" ? "rgba(255, 180, 0, 0.2)" : "rgba(35, 135, 255, 0.2)")};
+	box-shadow: 0 0 3px rgba(255, 180, 0, 0.2);
 	transition:
 		border-color 0.3s ease,
 		box-shadow 0.3s ease;
+	position: relative; // Ensure the slider is positioned correctly
 `
 
 const pulseAnimation = `
@@ -94,18 +91,17 @@ const pulseAnimation = `
 	}
 `
 
-const Slider = styled.div<{ isAct: boolean; isPlan?: boolean; animate?: boolean }>`
+const Slider = styled.div<{ isAct: boolean; animate?: boolean }>`
 	${pulseAnimation}
 	position: absolute;
 	height: 100%;
 	width: 50%;
-	background-color: ${(props) => (props.isPlan ? PLAN_MODE_COLOR : ACT_MODE_COLOR)};
+	background-color: PLAN_MODE_COLOR;
 	transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
 	transform: translateX(${(props) => (props.isAct ? "100%" : "0%")});
-	box-shadow: 0 0 8px ${(props) => (props.isPlan ? "rgba(255, 180, 0, 0.5)" : "rgba(35, 135, 255, 0.5)")};
+	box-shadow: 0 0 8px ${(props) => (props.isAct ? "rgba(255, 180, 0, 0.5)" : "rgba(255, 180, 0, 0.5)")};
 	border-radius: 10px;
-	animation: ${(props) =>
-		props.animate ? (props.isPlan ? "pulseBorderPlan 0.5s ease-in-out" : "pulseBorder 0.5s ease-in-out") : "none"};
+	animation: ${(props) => (props.animate ? "pulseBorderPlan 0.5s ease-in-out" : "none")};
 `
 
 const ButtonGroup = styled.div`
@@ -1085,9 +1081,8 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 							cursor: textAreaDisabled ? "not-allowed" : undefined,
 							flex: 1,
 							zIndex: 1,
-							outline: isTextAreaFocused
-								? `1px solid ${chatSettings.mode === "plan" ? PLAN_MODE_COLOR : "var(--vscode-focusBorder)"}`
-								: "none",
+
+							outline: isTextAreaFocused ? `1px solid ${PLAN_MODE_COLOR}` : "none",
 						}}
 						onScroll={() => updateHighlights()}
 					/>
@@ -1230,11 +1225,7 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 							disabled={false}
 							mode={chatSettings.mode}
 							onClick={onModeToggle}>
-							<Slider
-								isAct={chatSettings.mode === "act"}
-								isPlan={chatSettings.mode === "plan"}
-								animate={animateModeSwitch}
-							/>
+							<Slider isAct={chatSettings.mode === "act"} animate={animateModeSwitch} />
 
 							<SwitchOption
 								isActive={chatSettings.mode === "plan"}
