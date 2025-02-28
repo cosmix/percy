@@ -237,7 +237,15 @@ const ModelButtonContent = styled.div`
 const LightbulbIcon = styled.span`
 	color: #ffd700;
 	margin-left: 4px;
-	font-size: 10px;
+	font-size: 8px;
+	display: inline-block;
+	margin-bottom: -3px;
+	position: relative;
+	text-decoration: none;
+
+	&:hover {
+		text-decoration: none;
+	}
 `
 
 const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
@@ -1187,16 +1195,14 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 									// }}
 									tabIndex={0}
 									title={modelDisplayName}>
-									<ModelButtonContent>
-										{modelDisplayName}
-										{hasReasoningCapability && (
-											<LightbulbIcon
-												className="codicon codicon-lightbulb"
-												title="This model supports reasoning/thinking mode"
-											/>
-										)}
-									</ModelButtonContent>
+									<ModelButtonContent>{modelDisplayName}</ModelButtonContent>
 								</ModelDisplayButton>
+								{hasReasoningCapability && (
+									<LightbulbIcon
+										className="codicon codicon-lightbulb"
+										title="This model supports reasoning/thinking mode"
+									/>
+								)}
 							</ModelButtonWrapper>
 							{showModelSelector && (
 								<ModelSelectorTooltip
