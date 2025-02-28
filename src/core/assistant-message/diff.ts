@@ -25,8 +25,17 @@ function lineTrimmedFallbackMatch(
 	// Find the line number where startIndex falls
 	const startLineNum = getLineForOffset(startIndex)
 
+	// Ensure the array has enough elements
+	if (startLineNum >= originalLines.length || startLineNum < 0) {
+		return false
+	}
+
 	// For each possible starting position in original content
 	for (let i = startLineNum; i <= originalLines.length - searchLines.length; i++) {
+		// Verify index is valid before accessing
+		if (i < 0 || i >= lineStartOffsets.length) {
+			continue
+		}
 		let matches = true
 
 		// Try to match all search lines from this position
@@ -44,7 +53,11 @@ function lineTrimmedFallbackMatch(
 		if (matches) {
 			const matchStartIndex = lineStartOffsets[i]
 			const matchEndIndex =
-				i + searchLines.length < originalLines.length ? lineStartOffsets[i + searchLines.length] : originalContent.length
+				i + searchLines.length <= originalLines.length
+					? i + searchLines.length < originalLines.length
+						? lineStartOffsets[i + searchLines.length]
+						: originalContent.length
+					: originalContent.length
 
 			return [matchStartIndex, matchEndIndex]
 		}
@@ -89,7 +102,20 @@ function lineTrimmedFallbackMatch(
  *   - lineEndOffsets: Array where each index i contains the character offset of the end of line i
  *   - getLineForOffset: Function to get line number for a character offset
  */
-function calculateLineOffsets(lines: string[]): {
+
+/**
+ * Calculates and returns line offset information for efficient position calculations.
+ * @param lines The array of lines to process
+ * @param originalContent Optional original content to detect line endings
+ * @returns An object containing:
+ *   - lineStartOffsets: Array where each index i contains the character offset of line i
+ *   - lineEndOffsets: Array where each index i contains the character offset of the end of line i
+ *   - getLineForOffset: Function to get line number for a character offset
+ */
+function calculateLineOffsets(
+	lines: string[],
+	originalContent?: string,
+): {
 	lineStartOffsets: number[]
 	lineEndOffsets: number[]
 	getLineForOffset: (offset: number) => number
@@ -97,12 +123,23 @@ function calculateLineOffsets(lines: string[]): {
 	const lineStartOffsets: number[] = []
 	const lineEndOffsets: number[] = []
 
+	// Detect if we're dealing with CRLF or LF
+	const detectLineEnding = (content: string): string => {
+		return content.includes("\r\n") ? "\r\n" : "\n"
+	}
+
+	const lineEnding = originalContent ? detectLineEnding(originalContent) : "\n"
+	const lineEndingLength = lineEnding.length
+
 	let currentOffset = 0
 	for (let i = 0; i < lines.length; i++) {
 		lineStartOffsets.push(currentOffset)
 		currentOffset += lines[i].length
 		lineEndOffsets.push(currentOffset)
-		currentOffset += 1 // +1 for \n
+		// Only add line ending for non-last lines or if original content ends with newline
+		if (i < lines.length - 1 || (originalContent && originalContent.endsWith(lineEnding))) {
+			currentOffset += lineEndingLength
+		}
 	}
 
 	// Binary search function to find line number for a character offset
@@ -126,6 +163,215 @@ function calculateLineOffsets(lines: string[]): {
 	}
 
 	return { lineStartOffsets, lineEndOffsets, getLineForOffset }
+}
+
+/**
+ * Creates a lightweight preview of the diff result without performing expensive matching operations.
+ * This is used during streaming to provide a visual approximation of the changes.
+ *
+ * @param diffContent The diff content with SEARCH/REPLACE blocks
+ * @param originalContent The original file content
+ * @returns A preview of what the file might look like after applying the diff
+ */
+function createLightweightPreview(diffContent: string, originalContent: string): string {
+	// Parse the diff content to extract complete SEARCH/REPLACE blocks
+	const blocks = parseSimpleDiffBlocks(diffContent)
+	let previewContent = originalContent
+
+	// Apply each complete block to the preview content
+	for (const block of blocks) {
+		if (block.complete) {
+			// Handle empty search block (special cases)
+			if (!block.search.trim()) {
+				if (originalContent.trim() === "") {
+					// New file - just use replacement
+					previewContent = block.replace
+				} else {
+					// Full file replacement
+					previewContent = block.replace
+				}
+				continue
+			}
+
+			// Try a simple exact match first for efficiency
+			const searchPos = previewContent.indexOf(block.search)
+			if (searchPos !== -1) {
+				// Found an exact match, apply the replacement
+				previewContent =
+					previewContent.substring(0, searchPos) +
+					block.replace +
+					previewContent.substring(searchPos + block.search.length)
+				continue
+			}
+
+			// If exact match fails, try a simple line-based match
+			// This is a simplified version that doesn't use the more expensive matching algorithms
+			const previewLines = previewContent.split("\n")
+			const searchLines = block.search.split("\n")
+
+			// Skip empty search lines
+			if (searchLines.length === 0 || (searchLines.length === 1 && searchLines[0] === "")) {
+				continue
+			}
+
+			// Try to find the first line of the search block
+			for (let i = 0; i < previewLines.length; i++) {
+				if (previewLines[i].trim() === searchLines[0].trim()) {
+					// Check if subsequent lines match
+					let matches = true
+					for (let j = 1; j < searchLines.length && i + j < previewLines.length; j++) {
+						if (previewLines[i + j].trim() !== searchLines[j].trim()) {
+							matches = false
+							break
+						}
+					}
+
+					if (matches) {
+						// Found a match, replace the lines
+						const replaceLines = block.replace.split("\n")
+						previewLines.splice(i, searchLines.length, ...replaceLines)
+						previewContent = previewLines.join("\n")
+						break
+					}
+				}
+			}
+		}
+	}
+
+	// Preserve line endings from original content
+	if (originalContent.endsWith("\n") && !previewContent.endsWith("\n")) {
+		previewContent += "\n"
+	}
+
+	return previewContent
+}
+
+/**
+ * Parses the diff content to extract complete SEARCH/REPLACE blocks.
+ *
+ * @param diffContent The diff content with SEARCH/REPLACE blocks
+ * @returns An array of parsed blocks with search and replace content
+ */
+
+function parseSimpleDiffBlocks(diffContent: string): Array<{
+	search: string
+	replace: string
+	complete: boolean
+	startLine: number
+	endLine: number
+	isValid: boolean // New property to track validity
+}> {
+	const lines = diffContent.split("\n")
+	const blocks: Array<{
+		search: string
+		replace: string
+		complete: boolean
+		startLine: number
+		endLine: number
+		isValid: boolean
+	}> = []
+
+	let currentBlock: {
+		search: string[]
+		replace: string[]
+		inSearch: boolean
+		inReplace: boolean
+		complete: boolean
+		startLine: number
+		endLine: number
+		isValid: boolean
+	} = {
+		search: [],
+		replace: [],
+		inSearch: false,
+		inReplace: false,
+		complete: false,
+		startLine: -1,
+		endLine: -1,
+		isValid: true,
+	}
+
+	for (let i = 0; i < lines.length; i++) {
+		const line = lines[i]
+		if (line === "<<<<<<< SEARCH") {
+			// Check if we're already in a block (invalid nesting)
+			if (currentBlock.inSearch || currentBlock.inReplace) {
+				// Mark current block as invalid and close it
+				currentBlock.isValid = false
+				currentBlock.complete = true
+				currentBlock.endLine = i - 1
+				blocks.push({
+					search: currentBlock.search.join("\n"),
+					replace: currentBlock.replace.join("\n"),
+					complete: currentBlock.complete,
+					startLine: currentBlock.startLine,
+					endLine: currentBlock.endLine,
+					isValid: currentBlock.isValid,
+				})
+			}
+
+			// Start a new block
+			currentBlock = {
+				search: [],
+				replace: [],
+				inSearch: true,
+				inReplace: false,
+				complete: false,
+				startLine: i,
+				endLine: -1,
+				isValid: true,
+			}
+		} else if (line === "=======") {
+			// Check if we're in search mode, otherwise invalid sequence
+			if (!currentBlock.inSearch || currentBlock.inReplace) {
+				currentBlock.isValid = false
+			}
+			// Switch from search to replace
+			currentBlock.inSearch = false
+			currentBlock.inReplace = true
+		} else if (line === ">>>>>>> REPLACE") {
+			// Check for valid state transition
+			if (!currentBlock.inReplace) {
+				currentBlock.isValid = false
+			}
+
+			// End the block
+			currentBlock.inSearch = false
+			currentBlock.inReplace = false
+			currentBlock.complete = true
+			currentBlock.endLine = i
+
+			// Add the completed block to the list
+			blocks.push({
+				search: currentBlock.search.join("\n"),
+				replace: currentBlock.replace.join("\n"),
+				complete: true,
+				startLine: currentBlock.startLine,
+				endLine: currentBlock.endLine,
+				isValid: currentBlock.isValid,
+			})
+		} else if (currentBlock.inSearch) {
+			// Add line to search content
+			currentBlock.search.push(line)
+		} else if (currentBlock.inReplace) {
+			// Add line to replace content
+			currentBlock.replace.push(line)
+		}
+	}
+
+	// If we have a partial block at the end, add it too
+	if ((currentBlock.inSearch || currentBlock.inReplace) && !currentBlock.complete) {
+		blocks.push({
+			search: currentBlock.search.join("\n"),
+			replace: currentBlock.replace.join("\n"),
+			complete: false,
+			startLine: currentBlock.startLine,
+			endLine: lines.length - 1,
+			isValid: false, // Partial blocks are invalid
+		})
+	}
+
+	return blocks
 }
 
 function blockAnchorFallbackMatch(
@@ -155,8 +401,17 @@ function blockAnchorFallbackMatch(
 	// Find the line number where startIndex falls
 	const startLineNum = getLineForOffset(startIndex)
 
+	// Ensure the array has enough elements
+	if (startLineNum >= originalLines.length || startLineNum < 0) {
+		return false
+	}
+
 	// Look for matching start and end anchors
 	for (let i = startLineNum; i <= originalLines.length - searchBlockSize; i++) {
+		// Verify index is valid before accessing
+		if (i < 0 || i >= lineStartOffsets.length) {
+			continue
+		}
 		// Check if first line matches
 		if (originalLines[i].trim() !== firstLineSearch) {
 			continue
@@ -241,6 +496,7 @@ function blockAnchorFallbackMatch(
  * - If the search block cannot be matched using any of the available matching strategies,
  *   an error is thrown.
  */
+
 export async function constructNewFileContent(
 	diffContent: string,
 	originalContent: string,
@@ -248,16 +504,25 @@ export async function constructNewFileContent(
 	deferMatching: boolean = false,
 ): Promise<string> {
 	// If deferMatching is true and not the final chunk,
-	// return a simpler result for preview purposes only
+	// return a lightweight preview result without expensive matching
 	if (deferMatching && !isFinal) {
-		// For preview purposes, we just return the original content
-		// This maintains the visual appearance without doing expensive diffing
-		return originalContent
+		return createLightweightPreview(diffContent, originalContent)
 	}
 
-	// Calculate line offsets once
+	// Parse the diff blocks once for validation
+	const blocks = parseSimpleDiffBlocks(diffContent)
+
+	// Check for invalid blocks and log warnings
+	for (const block of blocks) {
+		if (block.complete && !block.isValid) {
+			console.warn(`Skipping invalid diff block at lines ${block.startLine}-${block.endLine}`)
+		}
+	}
+
+	// For final updates or when not deferring matching, perform the full diff processing
+	// Calculate line offsets once for efficient position calculations
 	const originalLines = originalContent.split("\n")
-	const { lineStartOffsets, getLineForOffset } = calculateLineOffsets(originalLines)
+	const { lineStartOffsets, getLineForOffset } = calculateLineOffsets(originalLines, originalContent)
 
 	const resultLines: string[] = []
 	let lastProcessedIndex = 0
@@ -285,6 +550,7 @@ export async function constructNewFileContent(
 		lines.pop()
 	}
 
+	// Process each line in the diff content
 	for (const line of lines) {
 		if (line === "<<<<<<< SEARCH") {
 			inSearch = true
@@ -301,7 +567,7 @@ export async function constructNewFileContent(
 			const currentSearchContent = currentSearchLines.join("\n") + "\n"
 
 			if (!currentSearchContent.trim()) {
-				// Empty search block handling (unchanged)
+				// Empty search block handling
 				if (originalContent.length === 0) {
 					searchMatchIndex = 0
 					searchEndIndex = 0
@@ -310,13 +576,13 @@ export async function constructNewFileContent(
 					searchEndIndex = originalContent.length
 				}
 			} else {
-				// Exact search match scenario (unchanged)
+				// Try exact match first (most efficient)
 				const exactIndex = originalContent.indexOf(currentSearchContent, lastProcessedIndex)
 				if (exactIndex !== -1) {
 					searchMatchIndex = exactIndex
 					searchEndIndex = exactIndex + currentSearchContent.length
 				} else {
-					// Attempt fallback matches (unchanged except for converting currentSearchContent)
+					// Try fallback matching strategies
 					const lineMatch = lineTrimmedFallbackMatch(
 						originalContent,
 						currentSearchContent,
@@ -324,6 +590,7 @@ export async function constructNewFileContent(
 						lineStartOffsets,
 						getLineForOffset,
 					)
+
 					if (lineMatch) {
 						;[searchMatchIndex, searchEndIndex] = lineMatch
 					} else {
@@ -334,6 +601,7 @@ export async function constructNewFileContent(
 							lineStartOffsets,
 							getLineForOffset,
 						)
+
 						if (blockMatch) {
 							;[searchMatchIndex, searchEndIndex] = blockMatch
 						} else {
@@ -345,19 +613,16 @@ export async function constructNewFileContent(
 				}
 			}
 
-			// Convert the content up to the match point to string and add to result
+			// Add content up to the match point to result
 			const contentUpToMatch = originalContent.slice(lastProcessedIndex, searchMatchIndex)
-
-			// Instead of adding to result string, break it into lines and add to resultLines
 			if (contentUpToMatch) {
 				const contentLines = contentUpToMatch.split("\n")
 				resultLines.push(...contentLines)
 
-				// If the last content didn't end with a newline, adjust the array
-				// to merge the last line with the next addition
+				// Handle case where content doesn't end with newline
 				if (!contentUpToMatch.endsWith("\n") && resultLines.length > 0) {
 					const lastResultLine = resultLines.pop() || ""
-					resultLines.push(lastResultLine) // We'll concatenate to this later
+					resultLines.push(lastResultLine)
 				}
 			}
 
@@ -366,8 +631,6 @@ export async function constructNewFileContent(
 
 		if (line === ">>>>>>> REPLACE") {
 			// Finished one replace block
-
-			// Advance lastProcessedIndex to after the matched section
 			lastProcessedIndex = searchEndIndex
 
 			// Reset for next block
@@ -380,7 +643,7 @@ export async function constructNewFileContent(
 			continue
 		}
 
-		// Accumulate content for search or replace using arrays
+		// Accumulate content for search or replace
 		if (inSearch) {
 			currentSearchLines.push(line)
 		} else if (inReplace) {
@@ -402,7 +665,7 @@ export async function constructNewFileContent(
 			resultLines.push(...remainingLines.slice(0, -1))
 		}
 
-		// Handle the last line specially
+		// Handle the last line specially to preserve trailing newlines
 		const lastLine = remainingLines[remainingLines.length - 1]
 		if (lastLine || remainingContent.endsWith("\n")) {
 			resultLines.push(lastLine)
@@ -410,7 +673,6 @@ export async function constructNewFileContent(
 	}
 
 	// Join resultLines to create the final result
-	// Carefully handle the newlines to ensure we don't add/remove any
 	let result = resultLines.join("\n")
 
 	// Ensure the result ends with a newline if the original content did
