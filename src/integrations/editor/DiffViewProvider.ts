@@ -89,13 +89,17 @@ export class DiffViewProvider {
 			throw new Error("Required values not set")
 		}
 
-		if (this.isStreamingMode && !isFinal) {
-			// In streaming mode, just buffer the content and update visual display
+		if (this.isStreamingMode) {
+			// Always update the buffered content
 			this.bufferedContent = accumulatedContent
 
-			// Update visual display without actual diffing
-			await this.updateVisualPreview(accumulatedContent)
-			return
+			if (!isFinal) {
+				// In streaming mode with non-final update, just update visual display
+				await this.updateVisualPreview(accumulatedContent)
+				return
+			}
+			// For final update in streaming mode, fall through to perform the actual diff
+			// with the complete buffered content
 		}
 
 		// For final update or non-streaming mode, perform the actual diff
@@ -373,7 +377,16 @@ export class DiffViewProvider {
 		const beginningOfDocument = new vscode.Position(0, 0)
 		diffEditor.selection = new vscode.Selection(beginningOfDocument, beginningOfDocument)
 
-		// Update decorations only without modifying document content
+		// Actually update the document content, not just decorations
+		if (diffLines.length > 0) {
+			const edit = new vscode.WorkspaceEdit()
+			const rangeToReplace = new vscode.Range(0, 0, document.lineCount, 0)
+			const contentToReplace = accumulatedLines.join("\n") + "\n"
+			edit.replace(document.uri, rangeToReplace, contentToReplace)
+			await vscode.workspace.applyEdit(edit)
+		}
+
+		// Update decorations
 		for (let i = 0; i < diffLines.length; i++) {
 			const currentLine = this.streamedLines.length + i
 			this.activeLineController!.setActiveLine(currentLine)
@@ -413,6 +426,9 @@ export class DiffViewProvider {
 			// Now perform the actual diff and update document
 			await this.update(this.bufferedContent, true)
 			this.bufferedContent = undefined
+			this._isStreamingMode = false
+		} else if (this.isStreamingMode) {
+			// Handle case where bufferedContent might be undefined but we're still in streaming mode
 			this._isStreamingMode = false
 		}
 	}

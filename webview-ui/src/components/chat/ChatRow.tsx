@@ -147,7 +147,7 @@ const renderReasoningBlock = (
 				}}>
 				{isReasoningExpanded ? (
 					<div style={{ marginTop: -3 }}>
-						<span style={{ fontWeight: "bold", display: "block", marginBottom: "8px" }}>
+						<span style={{ fontWeight: "bold", display: "block", marginBottom: "16px" }}>
 							Reasoning
 							<span
 								className="codicon codicon-chevron-down"

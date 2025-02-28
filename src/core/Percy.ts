@@ -1862,13 +1862,14 @@ export class Percy {
 									await this.diffViewProvider.open(relPath)
 								}
 
-								// If we were in streaming mode, finalize the content first
+								// If we were in streaming mode, finalize the content
+								// This will handle the update with isFinal=true internally
 								if (this.diffViewProvider.isStreamingMode) {
 									await this.diffViewProvider.finalizeStreamedContent()
+								} else {
+									// Only update directly if we weren't in streaming mode
+									await this.diffViewProvider.update(newContent, true)
 								}
-
-								// Then proceed with the update as normal
-								await this.diffViewProvider.update(newContent, true)
 								await delay(300) // wait for diff view to update
 								this.diffViewProvider.scrollToFirstDiff()
 								// showOmissionWarning(this.diffViewProvider.originalContent || "", newContent)
@@ -2795,8 +2796,9 @@ export class Percy {
 							break
 						}
 					}
+
 					case "plan_mode_response": {
-						const response: string | undefined = block.params.response
+						const response: string = block.params.response || "" // Add default empty string
 						try {
 							if (block.partial) {
 								await this.ask("plan_mode_response", removeClosingTag("response", response), block.partial).catch(
@@ -2804,7 +2806,8 @@ export class Percy {
 								)
 								break
 							} else {
-								if (!response) {
+								if (!response.trim()) {
+									// Check for empty or whitespace-only response
 									this.consecutiveMistakeCount++
 									pushToolResult(await this.sayAndCreateMissingParamError("plan_mode_response", "response"))
 									//
