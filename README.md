@@ -6,7 +6,7 @@ Percy is a fork of [Cline](https://www.github.com/cline/cline). It adds a number
 
 ## Additional Features
 
-- Auto-approve for file read and write operations only applies to file within the workspace
+- Auto-approve for file read and write operations only applies to files/folders within the workspace
 - Separate model selection/options for PLAN and ACT modes
 - Full support for Claude Sonnet 3.7 'extended thinking' mode with configurable token budget for thinking and max (output) tokens
 - Improved UI for Reasoning models
