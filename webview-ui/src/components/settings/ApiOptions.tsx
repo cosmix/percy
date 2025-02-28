@@ -8,6 +8,7 @@ import {
 	VSCodeTextField,
 } from "@vscode/webview-ui-toolkit/react"
 import { Fragment, memo, useCallback, useEffect, useMemo, useState } from "react"
+import { ReactNode } from "react"
 import { useEvent, useInterval } from "react-use"
 import {
 	ApiConfiguration,
@@ -64,6 +65,50 @@ const DropdownContainer = styled.div<{ zIndex?: number }>`
 		bottom: auto !important;
 	}
 `
+
+// Provider option with logo
+const ProviderOption = styled.div`
+	display: flex;
+	align-items: center;
+	gap: 8px;
+`
+
+const ProviderLogo = styled.img`
+	width: 16px;
+	height: 16px;
+	object-fit: contain;
+`
+
+interface ProviderOptionWithLogoProps {
+	value: string
+	children: ReactNode
+}
+
+const ProviderOptionWithLogo = ({ value, children }: ProviderOptionWithLogoProps) => {
+	// Get the current theme
+	const { theme } = useExtensionState()
+	const isDarkTheme = theme === "dark"
+
+	// The path to the logo is based on the provider value and theme
+	const logoPath = `assets/provider-logos/${value}-${isDarkTheme ? "dark" : "light"}.svg`
+
+	// State to track if the logo loaded successfully
+	const [logoLoaded, setLogoLoaded] = useState(true)
+
+	// Handle logo load error
+	const handleError = () => {
+		setLogoLoaded(false)
+	}
+
+	return (
+		<VSCodeOption value={value}>
+			<ProviderOption>
+				{logoLoaded && <ProviderLogo src={logoPath} alt={`${value} logo`} onError={handleError} />}
+				{children}
+			</ProviderOption>
+		</VSCodeOption>
+	)
+}
 
 declare module "vscode" {
 	interface LanguageModelChatSelector {
@@ -183,6 +228,7 @@ const ApiOptions = ({ showModelOptions, apiErrorMessage, modelIdErrorMessage, is
 				<label htmlFor="api-provider">
 					<span style={{ fontWeight: 500 }}>API Provider</span>
 				</label>
+
 				<VSCodeDropdown
 					id="api-provider"
 					value={selectedProvider}
@@ -191,22 +237,22 @@ const ApiOptions = ({ showModelOptions, apiErrorMessage, modelIdErrorMessage, is
 						minWidth: 130,
 						position: "relative",
 					}}>
-					<VSCodeOption value="openrouter">OpenRouter</VSCodeOption>
-					<VSCodeOption value="anthropic">Anthropic</VSCodeOption>
-					<VSCodeOption value="bedrock">AWS Bedrock</VSCodeOption>
-					<VSCodeOption value="openai">OpenAI Compatible</VSCodeOption>
-					<VSCodeOption value="vertex">GCP Vertex AI</VSCodeOption>
-					<VSCodeOption value="gemini">Google Gemini</VSCodeOption>
-					<VSCodeOption value="deepseek">DeepSeek</VSCodeOption>
-					<VSCodeOption value="mistral">Mistral</VSCodeOption>
-					<VSCodeOption value="openai-native">OpenAI</VSCodeOption>
-					<VSCodeOption value="vscode-lm">VS Code LM API</VSCodeOption>
-					<VSCodeOption value="requesty">Requesty</VSCodeOption>
-					<VSCodeOption value="together">Together</VSCodeOption>
-					<VSCodeOption value="qwen">Alibaba Qwen</VSCodeOption>
-					<VSCodeOption value="lmstudio">LM Studio</VSCodeOption>
-					<VSCodeOption value="ollama">Ollama</VSCodeOption>
-					<VSCodeOption value="litellm">LiteLLM</VSCodeOption>
+					<ProviderOptionWithLogo value="openrouter">OpenRouter</ProviderOptionWithLogo>
+					<ProviderOptionWithLogo value="anthropic">Anthropic</ProviderOptionWithLogo>
+					<ProviderOptionWithLogo value="bedrock">AWS Bedrock</ProviderOptionWithLogo>
+					<ProviderOptionWithLogo value="openai">OpenAI Compatible</ProviderOptionWithLogo>
+					<ProviderOptionWithLogo value="vertex">GCP Vertex AI</ProviderOptionWithLogo>
+					<ProviderOptionWithLogo value="gemini">Google Gemini</ProviderOptionWithLogo>
+					<ProviderOptionWithLogo value="deepseek">DeepSeek</ProviderOptionWithLogo>
+					<ProviderOptionWithLogo value="mistral">Mistral</ProviderOptionWithLogo>
+					<ProviderOptionWithLogo value="openai-native">OpenAI</ProviderOptionWithLogo>
+					<ProviderOptionWithLogo value="vscode-lm">VS Code LM API</ProviderOptionWithLogo>
+					<ProviderOptionWithLogo value="requesty">Requesty</ProviderOptionWithLogo>
+					<ProviderOptionWithLogo value="together">Together</ProviderOptionWithLogo>
+					<ProviderOptionWithLogo value="qwen">Alibaba Qwen</ProviderOptionWithLogo>
+					<ProviderOptionWithLogo value="lmstudio">LM Studio</ProviderOptionWithLogo>
+					<ProviderOptionWithLogo value="ollama">Ollama</ProviderOptionWithLogo>
+					<ProviderOptionWithLogo value="litellm">LiteLLM</ProviderOptionWithLogo>
 				</VSCodeDropdown>
 			</DropdownContainer>
 

@@ -793,7 +793,7 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 					<div style={{ padding: "0 20px", flexShrink: 0 }}>
 						<h2>What can I do for you?</h2>
 						<p>
-							I'm Percy. Your AI Sofwtare Assistant. You can ask me anything about your project. We can plan for the
+							I'm Percy. Your AI Software Assistant. You can ask me anything about your project. We can plan for the
 							development of a feature. Or fix a bug. Or integrate with other systems you use, like Jira, or Linear,
 							GitHub or Notion, through the magic of MCP integrations. Use your favourite models, local or via APIs,
 							proprietary or open weight/source.
