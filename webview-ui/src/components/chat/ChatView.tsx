@@ -793,11 +793,10 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 					<div style={{ padding: "0 20px", flexShrink: 0 }}>
 						<h2>What can I do for you?</h2>
 						<p>
-							Thanks to Claude 3.7 Sonnet's agentic coding capabilities, I can handle complex software development
-							tasks step-by-step. With tools that let me create & edit files, explore complex projects, use the
-							browser, and execute terminal commands (after you grant permission), I can assist you in ways that go
-							beyond code completion or tech support. I can even use MCP to create new tools and extend my own
-							capabilities.
+							I'm Percy. Your AI Sofwtare Assistant. You can ask me anything about your project. We can plan for the
+							development of a feature. Or fix a bug. Or integrate with other systems you use, like Jira, or Linear,
+							GitHub or Notion, through the magic of MCP integrations. Use your favourite models, local or via APIs,
+							proprietary or open weight/source.
 						</p>
 					</div>
 					{taskHistory.length > 0 && <HistoryPreview showHistoryView={showHistoryView} />}
