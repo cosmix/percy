@@ -1762,6 +1762,7 @@ export class Percy {
 										diff,
 										this.diffViewProvider.originalContent || "",
 										!block.partial,
+										this.diffViewProvider.isStreamingMode, // Pass streaming mode to defer expensive matching
 									)
 								} catch (error) {
 									await this.say("diff_error", relPath)
