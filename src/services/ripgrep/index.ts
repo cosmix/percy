@@ -120,7 +120,7 @@ export async function regexSearchFiles(
 	directoryPath: string,
 	regex: string,
 	filePattern?: string,
-	clineIgnoreController?: PercyIgnoreController,
+	percyIgnoreController?: PercyIgnoreController,
 ): Promise<string> {
 	const vscodeAppRoot = vscode.env.appRoot
 	const rgPath = await getBinPath(vscodeAppRoot)
@@ -174,8 +174,8 @@ export async function regexSearchFiles(
 	}
 
 	// Filter results using PercyIgnoreController if provided
-	const filteredResults = clineIgnoreController
-		? results.filter((result) => clineIgnoreController.validateAccess(result.filePath))
+	const filteredResults = percyIgnoreController
+		? results.filter((result) => percyIgnoreController.validateAccess(result.filePath))
 		: results
 
 	return formatResults(filteredResults, cwd)

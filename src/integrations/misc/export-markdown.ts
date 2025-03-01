@@ -35,9 +35,15 @@ export async function downloadTask(dateTs: number, conversationHistory: Anthropi
 	})
 
 	if (saveUri) {
-		// Write content to the selected location
-		await vscode.workspace.fs.writeFile(saveUri, Buffer.from(markdownContent))
-		vscode.window.showTextDocument(saveUri, { preview: true })
+		try {
+			// Write content to the selected location
+			await vscode.workspace.fs.writeFile(saveUri, new TextEncoder().encode(markdownContent))
+			vscode.window.showTextDocument(saveUri, { preview: true })
+		} catch (error) {
+			vscode.window.showErrorMessage(
+				`Failed to save markdown file: ${error instanceof Error ? error.message : String(error)}`,
+			)
+		}
 	}
 }
 

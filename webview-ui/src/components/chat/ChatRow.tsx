@@ -25,6 +25,7 @@ import Thumbnails from "../common/Thumbnails"
 import McpResourceRow from "../mcp/McpResourceRow"
 import McpToolRow from "../mcp/McpToolRow"
 import { highlightMentions } from "./TaskHeader"
+import McpResponseDisplay from "../mcp/McpResponseDisplay"
 
 const lightBulbPulse = keyframes`
   0%, 100% { opacity: 0.4; transform: scale(1); }
@@ -464,12 +465,6 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 								Percy wants to read this file:
 							</span>
 						</div>
-						{/* <CodeAccordian
-							code={tool.content!}
-							path={tool.path!}
-							isExpanded={isExpanded}
-							onToggleExpand={onToggleExpand}
-						/> */}
 						<div
 							style={{
 								borderRadius: 3,
@@ -595,32 +590,6 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 						/>
 					</>
 				)
-			// case "inspectSite":
-			// 	const isInspecting =
-			// 		isLast && lastModifiedMessage?.say === "inspect_site_result" && !lastModifiedMessage?.images
-			// 	return (
-			// 		<>
-			// 			<div style={headerStyle}>
-			// 				{isInspecting ? <ProgressIndicator /> : toolIcon("inspect")}
-			// 				<span style={{ fontWeight: "bold" }}>
-			// 					{message.type === "ask" ? (
-			// 						<>Percy wants to inspect this website:</>
-			// 					) : (
-			// 						<>Percy is inspecting this website:</>
-			// 					)}
-			// 				</span>
-			// 			</div>
-			// 			<div
-			// 				style={{
-			// 					borderRadius: 3,
-			// 					border: "1px solid var(--vscode-editorGroup-border)",
-			// 					overflow: "hidden",
-			// 					backgroundColor: CODE_BLOCK_BG_COLOR,
-			// 				}}>
-			// 				<CodeBlock source={`${"```"}shell\n${tool.path}\n${"```"}`} forceWrap={true} />
-			// 			</div>
-			// 		</>
-			// 	)
 			default:
 				return null
 		}
@@ -667,10 +636,6 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 					{icon}
 					{title}
 				</div>
-				{/* <Terminal
-					rawOutput={command + (output ? "\n" + output : "")}
-					shouldAllowInput={!!isCommandExecuting && output.length > 0}
-				/> */}
 				<div
 					style={{
 						borderRadius: 3,
@@ -737,7 +702,6 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 					{useMcpServer.type === "access_mcp_resource" && (
 						<McpResourceRow
 							item={{
-								// Use the matched resource/template details, with fallbacks
 								...(findMatchingResourceOrTemplate(
 									useMcpServer.uri || "",
 									server?.resources,
@@ -747,7 +711,6 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 									mimeType: "",
 									description: "",
 								}),
-								// Always use the actual URI from the request
 								uri: useMcpServer.uri || "",
 							}}
 						/>
@@ -1223,7 +1186,6 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 					)
 				case "completion_result":
 					if (message.text) {
-						// FIXME: is this ever even used?
 						const hasChanges = message.text.endsWith(COMPLETION_RESULT_CHANGES_FLAG) ?? false
 						const text = hasChanges ? message.text.slice(0, -COMPLETION_RESULT_CHANGES_FLAG.length) : message.text
 						return (

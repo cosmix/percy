@@ -1563,7 +1563,7 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 			uriScheme: vscode.env.uriScheme,
 			currentTaskItem: this.percy?.taskId ? (taskHistory || []).find((item) => item.id === this.percy?.taskId) : undefined,
 			checkpointTrackerErrorMessage: this.percy?.checkpointTrackerErrorMessage,
-			clineMessages: this.percy?.clineMessages || [],
+			percyMessages: this.percy?.clineMessages || [],
 			taskHistory: (taskHistory || []).filter((item) => item.ts && item.task).sort((a, b) => b.ts - a.ts),
 			shouldShowAnnouncement: lastShownAnnouncementId !== this.latestAnnouncementId,
 			platform: process.platform as Platform,

@@ -22,6 +22,7 @@ export interface WebviewMessage {
 		| "requestOllamaModels"
 		| "requestLmStudioModels"
 		| "openImage"
+		| "openInBrowser"
 		| "openFile"
 		| "openMention"
 		| "cancelTask"
@@ -47,7 +48,11 @@ export interface WebviewMessage {
 		| "searchCommits"
 		| "showMcpView"
 		| "fetchLatestMcpServersFromHub"
-		| "updateReasoningBlocksExpanded"
+		| "telemetrySetting"
+		| "openSettings"
+		| "updateMcpTimeout"
+		| "fetchOpenGraphData"
+		| "checkIsImageUrl"
 	// | "relaunchChromeDebugMode"
 	text?: string
 	disabled?: boolean
@@ -69,6 +74,9 @@ export interface WebviewMessage {
 
 	// For updateReasoningBlocksExpanded
 	expanded?: boolean
+
+	// For openInBrowser
+	url?: string
 }
 
 export type PercyAskResponse = "yesButtonClicked" | "noButtonClicked" | "messageResponse"

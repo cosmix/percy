@@ -74,6 +74,7 @@ export const ExtensionStateContextProvider: React.FC<{
 							config.qwenApiKey,
 							config.mistralApiKey,
 							config.vsCodeLmModelSelector,
+							config.xaiApiKey,
 						].some((key) => key !== undefined)
 					: false
 				setShowWelcome(!hasKey)
@@ -94,9 +95,9 @@ export const ExtensionStateContextProvider: React.FC<{
 				const partialMessage = message.partialMessage!
 				setState((prevState) => {
 					// worth noting it will never be possible for a more up-to-date message to be sent here or in normal messages post since the presentAssistantContent function uses lock
-					const lastIndex = findLastIndex(prevState.clineMessages, (msg) => msg.ts === partialMessage.ts)
+					const lastIndex = findLastIndex(prevState.percyMessages, (msg) => msg.ts === partialMessage.ts)
 					if (lastIndex !== -1) {
-						const newPercyMessages = [...prevState.clineMessages]
+						const newPercyMessages = [...prevState.percyMessages]
 						newPercyMessages[lastIndex] = partialMessage
 						return { ...prevState, clineMessages: newPercyMessages }
 					}
