@@ -44,7 +44,7 @@ export class AnthropicHandler implements ApiHandler {
 		const thinkingBudget = getThinkingBudget(model.info, this.options.thinkingMode, maxTokens)
 
 		// Add thinking parameter if budget is greater than 0
-		if (isThinkingEnabled(model.info) && thinkingBudget > 0) {
+		if (isThinkingEnabled(model.info, this.options.thinkingMode) && thinkingBudget > 0) {
 			requestOptions.thinking = {
 				type: "enabled",
 				budget_tokens: thinkingBudget,

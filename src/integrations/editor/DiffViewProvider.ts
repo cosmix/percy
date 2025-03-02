@@ -143,28 +143,98 @@ export class DiffViewProvider {
 			this.scrollEditorToLine(firstChangeLine)
 		}
 
+		// Find the current and next change regions to process
+		let currentRegionIndex = -1
+		let currentRegion = null
+		let nextRegion = null
+
+		// Find which region we're currently processing
+		if (changedRegions.length > 0) {
+			const currentLine = this.streamedLines.length
+
+			for (let i = 0; i < changedRegions.length; i++) {
+				if (currentLine <= changedRegions[i].endLine) {
+					currentRegionIndex = i
+					currentRegion = changedRegions[i]
+					nextRegion = i < changedRegions.length - 1 ? changedRegions[i + 1] : null
+					break
+				}
+			}
+
+			// If we're past all regions, we're done with changes
+			if (currentRegionIndex === -1 && currentLine > 0) {
+				// We're past all regions, just apply the final content
+				if (isFinal) {
+					const edit = new vscode.WorkspaceEdit()
+					edit.replace(document.uri, new vscode.Range(0, 0, document.lineCount, 0), accumulatedContent)
+					await vscode.workspace.applyEdit(edit)
+
+					// Clear all decorations
+					this.fadedOverlayController.clear()
+					this.activeLineController.clear()
+
+					// Update streamedLines
+					this.streamedLines = accumulatedLines
+					return
+				}
+			}
+		}
+
 		// Process the new lines
 		for (let i = 0; i < diffLines.length; i++) {
 			const currentLine = this.streamedLines.length + i
-			// Replace all content up to the current line with accumulated lines
-			// This is necessary (as compared to inserting one line at a time) to handle cases where html tags on previous lines are auto closed for example
-			const edit = new vscode.WorkspaceEdit()
-			const rangeToReplace = new vscode.Range(0, 0, currentLine + 1, 0)
-			const contentToReplace = accumulatedLines.slice(0, currentLine + 1).join("\n") + "\n"
-			edit.replace(document.uri, rangeToReplace, contentToReplace)
-			await vscode.workspace.applyEdit(edit)
 
-			// Update decorations
-			this.activeLineController.setActiveLine(currentLine)
-			this.fadedOverlayController.updateOverlayAfterLine(currentLine, document.lineCount)
+			// Check if we need to jump to the next region
+			if (currentRegion && currentLine > currentRegion.endLine + 3 && nextRegion) {
+				// We've finished the current region, jump to the next one
+				currentRegionIndex++
+				currentRegion = changedRegions[currentRegionIndex]
+				nextRegion = currentRegionIndex < changedRegions.length - 1 ? changedRegions[currentRegionIndex + 1] : null
 
-			// Only scroll if we're near a change region or if there are no change regions
-			const shouldScroll =
-				changedRegions.length === 0 ||
-				changedRegions.some((region) => currentLine >= region.startLine - 3 && currentLine <= region.endLine + 3)
+				// Apply all content up to the next region
+				const nextRegionStartLine = Math.max(0, currentRegion.startLine - 3) // Include some context
+				const edit = new vscode.WorkspaceEdit()
+				const rangeToReplace = new vscode.Range(0, 0, nextRegionStartLine, 0)
+				const contentToReplace = accumulatedLines.slice(0, nextRegionStartLine).join("\n") + "\n"
+				edit.replace(document.uri, rangeToReplace, contentToReplace)
+				await vscode.workspace.applyEdit(edit)
 
-			if (shouldScroll) {
+				// Jump to the next region
+				this.scrollEditorToLine(currentRegion.startLine)
+
+				// Update our current line
+				i = nextRegionStartLine - this.streamedLines.length
+				continue
+			}
+
+			// Determine if this line is in or near a change region
+			const isNearChangeRegion =
+				changedRegions.length === 0 || // For write_to_file or if no regions
+				(currentRegion && currentLine >= currentRegion.startLine - 3 && currentLine <= currentRegion.endLine + 3)
+
+			// Only process lines that are in or near change regions
+			if (isNearChangeRegion) {
+				// Replace all content up to the current line with accumulated lines
+				const edit = new vscode.WorkspaceEdit()
+				const rangeToReplace = new vscode.Range(0, 0, currentLine + 1, 0)
+				const contentToReplace = accumulatedLines.slice(0, currentLine + 1).join("\n") + "\n"
+				edit.replace(document.uri, rangeToReplace, contentToReplace)
+				await vscode.workspace.applyEdit(edit)
+
+				// Update decorations
+				this.activeLineController.setActiveLine(currentLine)
+				this.fadedOverlayController.updateOverlayAfterLine(currentLine, document.lineCount)
+
+				// Scroll to show the current line
 				this.scrollEditorToLine(currentLine)
+			} else if (i === diffLines.length - 1) {
+				// If this is the last line and we're not near a change region,
+				// apply all remaining content at once
+				const edit = new vscode.WorkspaceEdit()
+				const rangeToReplace = new vscode.Range(0, 0, document.lineCount, 0)
+				const contentToReplace = accumulatedContent
+				edit.replace(document.uri, rangeToReplace, contentToReplace)
+				await vscode.workspace.applyEdit(edit)
 			}
 		}
 

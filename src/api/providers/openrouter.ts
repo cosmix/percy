@@ -119,7 +119,7 @@ export class OpenRouterHandler implements ApiHandler {
 		let budget_tokens = this.options.thinkingMode?.budgetTokens || 0
 
 		// Enable reasoning if budget_tokens is set
-		if (isThinkingEnabled(model.info) && budget_tokens > 0) {
+		if (isThinkingEnabled(model.info, this.options.thinkingMode) && budget_tokens > 0) {
 			// Extended thinking requires temperature=1 (undefined here means use default of 1)
 			temperature = undefined
 			reasoning = { max_tokens: Math.min(budget_tokens, maxTokens || 64000) }

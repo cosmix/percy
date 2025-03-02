@@ -124,7 +124,8 @@ const renderReasoningBlock = (
 ) => {
 	if (!text) return null
 
-	const isReasoningExpanded = reasoningBlocksExpanded !== undefined ? reasoningBlocksExpanded : isExpanded
+	// Default to showing reasoning blocks (true) when reasoningBlocksExpanded is undefined
+	const isReasoningExpanded = reasoningBlocksExpanded !== undefined ? reasoningBlocksExpanded : false
 
 	const handleReasoningClick = () => {
 		// Toggle the global reasoningBlocksExpanded state

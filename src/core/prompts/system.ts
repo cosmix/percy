@@ -89,14 +89,15 @@ Parameters:
      * Match character-for-character including whitespace, indentation, line endings
      * Include all comments, docstrings, etc.
   2. SEARCH/REPLACE blocks will ONLY replace the first match occurrence.
-     * Including multiple unique SEARCH/REPLACE blocks if you need to make multiple changes.
-     * Include *just* enough lines in each SEARCH section to uniquely match each set of lines that need to change.
-     * When using multiple SEARCH/REPLACE blocks, list them in the order they appear in the file.
-  3. Keep SEARCH/REPLACE blocks concise:
-     * Break large SEARCH/REPLACE blocks into a series of smaller blocks that each change a small portion of the file.
-     * Include just the changing lines, and a few surrounding lines if needed for uniqueness.
-     * Do not include long runs of unchanging lines in SEARCH/REPLACE blocks.
-     * Each line must be complete. Never truncate lines mid-way through as this can cause matching failures.
+     * Use multiple unique SEARCH/REPLACE blocks for multiple changes
+     * Include *just* enough lines to uniquely match (typically 5-20 lines total)
+     * List blocks in the order they appear in the file
+  3. STRICT SIZE LIMITS for SEARCH/REPLACE blocks:
+     * NEVER exceed 40 lines per SEARCH block - this is a hard requirement
+     * Target 5-15 lines per block for optimal reliability
+     * Break large changes into multiple small blocks
+     * Include only the modified lines plus 1-2 contextual lines
+     * Large blocks (40+ lines) will most likely fail due to whitespace/formatting mismatches
   4. Special operations:
      * To move code: Use two SEARCH/REPLACE blocks (one to delete from original + one to insert at new location)
      * To delete code: Use empty REPLACE section

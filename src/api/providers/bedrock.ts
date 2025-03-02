@@ -40,7 +40,7 @@ export class AwsBedrockHandler implements ApiHandler {
 		const thinkingBudget = getThinkingBudget(model.info, this.options.thinkingMode, maxTokens)
 
 		// Add thinking parameter if budget is greater than 0
-		if (isThinkingEnabled(model.info) && thinkingBudget > 0) {
+		if (isThinkingEnabled(model.info, this.options.thinkingMode) && thinkingBudget > 0) {
 			// Set thinking parameter
 			requestOptions.thinking = {
 				type: "enabled",
