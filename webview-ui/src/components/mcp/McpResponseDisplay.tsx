@@ -380,7 +380,7 @@ const McpResponseDisplay: React.FC<McpResponseDisplayProps> = ({ responseText })
 							<div key={`embed-${segmentIndex++}`} style={{ margin: "10px 0" }}>
 								<img
 									src={DOMPurify.sanitize(url)}
-									alt={`Image for ${url}`}
+									alt={`for ${url}`}
 									style={{
 										width: "85%",
 										height: "auto",

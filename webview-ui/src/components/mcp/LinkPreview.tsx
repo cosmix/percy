@@ -17,7 +17,7 @@ interface LinkPreviewProps {
 
 const LinkPreview: React.FC<LinkPreviewProps> = ({ url }) => {
 	const [loading, setLoading] = useState(true)
-	const [error, setError] = useState<string | null>(null)
+	const [, setError] = useState<string | null>(null)
 	const [ogData, setOgData] = useState<OpenGraphData | null>(null)
 
 	useEffect(() => {
