@@ -1,4 +1,3 @@
-import { boyerMooreSearch } from "../../../utils/string"
 import { LineIndex } from "./line-index"
 
 /**
