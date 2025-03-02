@@ -1,9 +1,10 @@
-import { Anthropic } from "@anthropic-ai/sdk"
+import type { Anthropic } from "@anthropic-ai/sdk"
 import { AnthropicVertex } from "@anthropic-ai/vertex-sdk"
 import { withRetry } from "../retry"
-import { ApiHandler } from "../"
+import { ApiHandler } from "../index"
 import { ApiHandlerOptions, ModelInfo, vertexDefaultModelId, VertexModelId, vertexModels } from "../../shared/api"
 import { ApiStream } from "../transform/stream"
+import { getThinkingBudget, getThinkingTemperature, isThinkingEnabled } from "../utils/thinking-mode"
 
 // https://docs.anthropic.com/en/api/claude-on-vertex-ai
 export class VertexHandler implements ApiHandler {
@@ -24,6 +25,18 @@ export class VertexHandler implements ApiHandler {
 		const model = this.getModel()
 		const modelId = model.id
 
+		// Determine max_tokens value based on model capabilities
+		let maxTokens: number
+		if (model.info.supportsThinking) {
+			maxTokens = Math.min(this.options.maxTokens || 8192, 64000)
+		} else {
+			maxTokens = model.info.maxTokens || 8192
+		}
+
+		// Get thinking budget using utility function
+		const budget_tokens = getThinkingBudget(model.info, this.options.thinkingMode, maxTokens)
+		const reasoningOn = budget_tokens > 0
+
 		let stream
 		switch (modelId) {
 			case "claude-3-7-sonnet@20250219":
@@ -40,45 +53,20 @@ export class VertexHandler implements ApiHandler {
 				const lastUserMsgIndex = userMsgIndices[userMsgIndices.length - 1] ?? -1
 				const secondLastMsgUserIndex = userMsgIndices[userMsgIndices.length - 2] ?? -1
 
-				stream = await this.client.beta.messages.create(
-					{
-						model: modelId,
-						max_tokens: model.info.maxTokens || 8192,
-						temperature: 0,
-						system: [
-							{
-								text: systemPrompt,
-								type: "text",
-								cache_control: { type: "ephemeral" },
-							},
-						],
-						messages: messages.map((message, index) => {
-							if (index === lastUserMsgIndex || index === secondLastMsgUserIndex) {
-								return {
-									...message,
-									content:
-										typeof message.content === "string"
-											? [
-													{
-														type: "text",
-														text: message.content,
-														cache_control: {
-															type: "ephemeral",
-														},
-													},
-												]
-											: message.content.map((content, contentIndex) =>
-													contentIndex === message.content.length - 1
-														? {
-																...content,
-																cache_control: {
-																	type: "ephemeral",
-																},
-															}
-														: content,
-												),
-								}
-							}
+				// Create request parameters
+				const requestParams: any = {
+					model: modelId,
+					max_tokens: maxTokens,
+					temperature: reasoningOn ? getThinkingTemperature(model.info, this.options.thinkingMode) : 0,
+					system: [
+						{
+							text: systemPrompt,
+							type: "text",
+							cache_control: { type: "ephemeral" },
+						},
+					],
+					messages: messages.map((message, index) => {
+						if (index === lastUserMsgIndex || index === secondLastMsgUserIndex) {
 							return {
 								...message,
 								content:
@@ -87,23 +75,58 @@ export class VertexHandler implements ApiHandler {
 												{
 													type: "text",
 													text: message.content,
+													cache_control: {
+														type: "ephemeral",
+													},
 												},
 											]
-										: message.content,
+										: message.content.map((content, contentIndex) =>
+												contentIndex === message.content.length - 1
+													? {
+															...content,
+															cache_control: {
+																type: "ephemeral",
+															},
+														}
+													: content,
+											),
 							}
-						}),
-						stream: true,
-					},
-					{
-						headers: {},
-					},
-				)
+						}
+						return {
+							...message,
+							content:
+								typeof message.content === "string"
+									? [
+											{
+												type: "text",
+												text: message.content,
+											},
+										]
+									: message.content,
+						}
+					}),
+					stream: true,
+				}
+
+				// Add thinking parameter if reasoning is enabled
+				// Using 'as any' because the Vertex API SDK types might not be up-to-date
+				// with the latest Claude features like thinking
+				if (reasoningOn) {
+					requestParams.thinking = {
+						type: "enabled",
+						budget_tokens: Math.min(budget_tokens, maxTokens),
+					}
+				}
+
+				// Use double casting to avoid TypeScript errors - first to unknown, then to AsyncIterable
+				stream = (await this.client.beta.messages.create(requestParams, { headers: {} })) as unknown as AsyncIterable<any>
 				break
 			}
 			default: {
-				stream = await this.client.beta.messages.create({
+				// Create request parameters for default case
+				const requestParams: any = {
 					model: modelId,
-					max_tokens: model.info.maxTokens || 8192,
+					max_tokens: maxTokens,
 					temperature: 0,
 					system: [
 						{
@@ -124,33 +147,44 @@ export class VertexHandler implements ApiHandler {
 								: message.content,
 					})),
 					stream: true,
-				})
+				}
+
+				// Force the stream type to ensure TypeScript knows this is a streamable response
+				// Use double casting to avoid TypeScript errors - first to unknown, then to AsyncIterable
+				stream = (await this.client.beta.messages.create(requestParams, { headers: {} })) as unknown as AsyncIterable<any>
 				break
 			}
 		}
+
 		for await (const chunk of stream) {
 			switch (chunk.type) {
-				case "message_start":
-					const usage = chunk.message.usage
+				case "message_start": {
+					const usage = chunk.message?.usage || {}
 					yield {
 						type: "usage",
-						inputTokens: usage.input_tokens || 0,
-						outputTokens: usage.output_tokens || 0,
-						cacheWriteTokens: usage.cache_creation_input_tokens || undefined,
-						cacheReadTokens: usage.cache_read_input_tokens || undefined,
+						inputTokens: usage.input_tokens ?? 0,
+						outputTokens: usage.output_tokens ?? 0,
+						cacheWriteTokens: usage.cache_creation_input_tokens,
+						cacheReadTokens: usage.cache_read_input_tokens,
 					}
 					break
-				case "message_delta":
+				}
+				case "message_delta": {
+					const usage = chunk.usage || {}
 					yield {
 						type: "usage",
 						inputTokens: 0,
-						outputTokens: chunk.usage.output_tokens || 0,
+						outputTokens: usage.output_tokens ?? 0,
 					}
 					break
+				}
 				case "message_stop":
 					break
-				case "content_block_start":
-					switch (chunk.content_block.type) {
+				case "content_block_start": {
+					const contentBlock = chunk.content_block || ({} as any)
+					const blockType = contentBlock.type
+
+					switch (blockType) {
 						case "text":
 							if (chunk.index > 0) {
 								yield {
@@ -158,23 +192,75 @@ export class VertexHandler implements ApiHandler {
 									text: "\n",
 								}
 							}
+							if (contentBlock.text) {
+								yield {
+									type: "text",
+									text: contentBlock.text,
+								}
+							}
+							break
+						case "thinking":
+							// Convert thinking chunks to reasoning chunks for display in the UI
+							if (contentBlock.thinking) {
+								yield {
+									type: "reasoning",
+									reasoning: contentBlock.thinking,
+								}
+								// Also yield the original thinking chunk for internal use
+								yield {
+									type: "thinking",
+									thinking: contentBlock.thinking,
+									signature: contentBlock.signature,
+								}
+							}
+							break
+						case "redacted_thinking":
 							yield {
-								type: "text",
-								text: chunk.content_block.text,
+								type: "redacted_thinking",
+								data: contentBlock.data,
 							}
 							break
 					}
 					break
-				case "content_block_delta":
-					switch (chunk.delta.type) {
+				}
+				case "content_block_delta": {
+					const delta = chunk.delta || ({} as any)
+					const deltaType = delta.type
+
+					switch (deltaType) {
 						case "text_delta":
-							yield {
-								type: "text",
-								text: chunk.delta.text,
+							if (delta.text) {
+								yield {
+									type: "text",
+									text: delta.text,
+								}
+							}
+							break
+						case "thinking_delta":
+							// Convert thinking_delta chunks to reasoning chunks for display in the UI
+							if (delta.thinking) {
+								yield {
+									type: "reasoning",
+									reasoning: delta.thinking,
+								}
+								// Also yield the original thinking_delta chunk for internal use
+								yield {
+									type: "thinking_delta",
+									thinking: delta.thinking,
+								}
+							}
+							break
+						case "signature_delta":
+							if (delta.signature) {
+								yield {
+									type: "signature_delta",
+									signature: delta.signature,
+								}
 							}
 							break
 					}
 					break
+				}
 				case "content_block_stop":
 					break
 			}

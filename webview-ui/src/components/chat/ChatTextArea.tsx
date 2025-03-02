@@ -5,6 +5,14 @@ import { useClickAway, useEvent, useWindowSize } from "react-use"
 import styled from "styled-components"
 import { mentionRegex, mentionRegexGlobal } from "../../../../src/shared/context-mentions"
 import { ExtensionMessage } from "../../../../src/shared/ExtensionMessage"
+import {
+	ModelInfo,
+	anthropicModels,
+	bedrockModels,
+	vertexModels,
+	geminiModels,
+	openAiNativeModels,
+} from "../../../../src/shared/api"
 import { useExtensionState } from "../../context/ExtensionStateContext"
 import {
 	ContextMenuOptionType,
@@ -96,7 +104,7 @@ const Slider = styled.div<{ isAct: boolean; animate?: boolean }>`
 	position: absolute;
 	height: 100%;
 	width: 50%;
-	background-color: PLAN_MODE_COLOR;
+	background-color: ${PLAN_MODE_COLOR};
 	transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
 	transform: translateX(${(props) => (props.isAct ? "100%" : "0%")});
 	box-shadow: 0 0 8px ${(props) => (props.isAct ? "rgba(255, 180, 0, 0.5)" : "rgba(255, 180, 0, 0.5)")};
@@ -794,26 +802,54 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 
 			const { selectedProvider, selectedModelId } = normalizeApiConfiguration(apiConfiguration)
 
-			// Check for Claude 3.7 Sonnet with thinking enabled
-			if (
-				selectedProvider === "anthropic" &&
-				selectedModelId === "claude-3-7-sonnet-20250219" &&
-				apiConfiguration.anthropicThinking
-			) {
-				return true
+			// Get the appropriate ModelInfo based on provider
+			let modelInfo: ModelInfo | undefined
+
+			if (selectedProvider === "anthropic") {
+				// Check anthropic models
+				modelInfo = (anthropicModels as Record<string, ModelInfo>)[selectedModelId]
+			} else if (selectedProvider === "openrouter") {
+				// Check openrouter models
+				modelInfo = openRouterModels[selectedModelId]
+			} else if (selectedProvider === "bedrock") {
+				// Check bedrock models
+				modelInfo = (bedrockModels as Record<string, ModelInfo>)[selectedModelId]
+			} else if (selectedProvider === "vertex") {
+				// Check vertex models
+				modelInfo = (vertexModels as Record<string, ModelInfo>)[selectedModelId]
+			} else if (selectedProvider === "gemini") {
+				// Check Gemini models that support thinking
+				modelInfo = (geminiModels as Record<string, ModelInfo>)[selectedModelId]
+			} else if (selectedProvider === "openai-native") {
+				// Check OpenAI native models
+				modelInfo = (openAiNativeModels as Record<string, ModelInfo>)[selectedModelId]
 			}
 
-			// Check for OpenRouter models with supportsThinking flag
-			if (selectedProvider === "openrouter" && openRouterModels[selectedModelId]?.supportsThinking) {
-				return true
+			// If we can't find model info, the model doesn't support thinking
+			if (!modelInfo) return false
+
+			// Get the appropriate config based on the current mode
+			const currentModeConfig =
+				chatSettings.mode === "act" ? chatSettings.actModeConfiguration : chatSettings.planModeConfiguration
+
+			// First check if the current mode has a saved configuration with thinking mode
+			if (currentModeConfig) {
+				// Use mode-specific thinking mode setting if available
+				return !!modelInfo.supportsThinking && !!currentModeConfig.thinkingMode?.enabled
 			}
 
-			// Check for any model with supportsThinking flag in its ModelInfo
-			const modelId = selectedModelId || ""
-			const modelInfo = openRouterModels[modelId]
-
-			return !!modelInfo?.supportsThinking
-		}, [apiConfiguration, openRouterModels])
+			// Fallback to current apiConfiguration
+			return !!modelInfo.supportsThinking && !!apiConfiguration.thinkingMode?.enabled
+		}, [
+			apiConfiguration,
+			openRouterModels,
+			chatSettings,
+			anthropicModels,
+			bedrockModels,
+			vertexModels,
+			geminiModels,
+			openAiNativeModels,
+		])
 
 		// Get model display name
 		const modelDisplayName = useMemo(() => {

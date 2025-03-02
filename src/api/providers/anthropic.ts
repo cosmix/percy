@@ -4,6 +4,7 @@ import { withRetry } from "../retry"
 import { anthropicDefaultModelId, AnthropicModelId, anthropicModels, ApiHandlerOptions, ModelInfo } from "../../shared/api"
 import { ApiHandler } from "../index"
 import { ApiStream } from "../transform/stream"
+import { getThinkingBudget, getThinkingTemperature, isThinkingEnabled } from "../utils/thinking-mode"
 
 export class AnthropicHandler implements ApiHandler {
 	private options: ApiHandlerOptions
@@ -20,7 +21,7 @@ export class AnthropicHandler implements ApiHandler {
 	@withRetry()
 	async *createMessage(systemPrompt: string, messages: Anthropic.Messages.MessageParam[]): ApiStream {
 		const model = this.getModel()
-		let stream: AnthropicStream<Anthropic.Beta.PromptCaching.Messages.RawPromptCachingBetaMessageStreamEvent>
+		let stream: AnthropicStream<Anthropic.Beta.Messages.BetaRawMessageStreamEvent>
 		const modelId = model.id
 
 		// Prepare request options (including thinking if applicable)
@@ -31,26 +32,26 @@ export class AnthropicHandler implements ApiHandler {
 		// Determine temperature value (default is 0)
 		let temperature = 0
 
-		// For Claude 3.7 Sonnet, use custom value from options if provided (default 8192, max 64000)
-		if (modelId === "claude-3-7-sonnet-20250219") {
+		// For models that support thinking (like Claude 3.7 Sonnet), use custom max tokens value
+		if (model.info.supportsThinking) {
 			maxTokens = Math.min(this.options.maxTokens || 8192, 64000)
-
-			// Only apply thinking options to Claude 3.7 Sonnet
-			if (this.options.anthropicThinking) {
-				// Ensure thinking budget doesn't exceed max_tokens
-				const thinkingBudget = this.options.anthropicThinking.budget_tokens
-
-				requestOptions.thinking = {
-					...this.options.anthropicThinking,
-					budget_tokens: Math.min(thinkingBudget, maxTokens),
-				}
-
-				// Set temperature to 1.0 when thinking mode is enabled for Claude 3.7 Sonnet
-				temperature = 1.0
-			}
 		} else {
 			// For other models, use the model's default max tokens
 			maxTokens = model.info.maxTokens || 8192
+		}
+
+		// Get thinking budget using utility function
+		const thinkingBudget = getThinkingBudget(model.info, this.options.thinkingMode, maxTokens)
+
+		// Add thinking parameter if budget is greater than 0
+		if (thinkingBudget > 0) {
+			requestOptions.thinking = {
+				type: "enabled",
+				budget_tokens: thinkingBudget,
+			}
+
+			// Set temperature using utility function
+			temperature = getThinkingTemperature(model.info, this.options.thinkingMode) || 0
 		}
 
 		switch (modelId) {
@@ -69,7 +70,7 @@ export class AnthropicHandler implements ApiHandler {
 				)
 				const lastUserMsgIndex = userMsgIndices[userMsgIndices.length - 1] ?? -1
 				const secondLastMsgUserIndex = userMsgIndices[userMsgIndices.length - 2] ?? -1
-				stream = await this.client.beta.promptCaching.messages.create(
+				stream = await this.client.messages.create(
 					{
 						model: modelId,
 						max_tokens: maxTokens,

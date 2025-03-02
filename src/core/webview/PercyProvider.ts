@@ -71,7 +71,7 @@ type GlobalStateKey =
 	| "lmStudioModelId"
 	| "lmStudioBaseUrl"
 	| "anthropicBaseUrl"
-	| "anthropicThinking"
+	| "thinkingMode"
 	| "maxTokens"
 	| "azureApiVersion"
 	| "openRouterModelId"
@@ -488,7 +488,7 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 							await this.updateGlobalState("lmStudioModelId", lmStudioModelId)
 							await this.updateGlobalState("lmStudioBaseUrl", lmStudioBaseUrl)
 							await this.updateGlobalState("anthropicBaseUrl", anthropicBaseUrl)
-							await this.updateGlobalState("anthropicThinking", message.apiConfiguration.anthropicThinking)
+							await this.updateGlobalState("thinkingMode", message.apiConfiguration.thinkingMode)
 							await this.updateGlobalState("maxTokens", message.apiConfiguration.maxTokens)
 							await this.storeSecret("geminiApiKey", geminiApiKey)
 							await this.storeSecret("openAiNativeApiKey", openAiNativeApiKey)
@@ -902,12 +902,20 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 			// Update global state with the new configuration
 			await this.updateGlobalState("apiProvider", newModeConfiguration.apiProvider)
 
-			// Update all API configuration properties
-			const apiConfigKeys = Object.keys(newModeConfiguration) as (keyof ApiConfiguration)[]
-			for (const key of apiConfigKeys) {
-				if (key !== "apiProvider" && newModeConfiguration[key] !== undefined) {
-					// For each property in the configuration, update the global state
-					await this.updateGlobalState(key as GlobalStateKey, newModeConfiguration[key])
+			// First, get a list of all properties across both modes (also ensures previously set properties get cleared)
+			const allApiConfigKeys = new Set([
+				...Object.keys(apiConfiguration || {}),
+				...Object.keys(newModeConfiguration || {}),
+			]) as Set<keyof ApiConfiguration>
+
+			// Clear all current configuration properties except apiProvider which we already set
+			for (const key of allApiConfigKeys) {
+				if (key !== "apiProvider") {
+					const value = newModeConfiguration[key]
+
+					// Update the global state, explicitly setting undefined values
+					// to clear properties that aren't in the new mode configuration
+					await this.updateGlobalState(key as GlobalStateKey, value)
 
 					// For secret keys, update the secret storage
 					if (
@@ -916,7 +924,7 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 						key.includes("SecretKey") ||
 						key.includes("SessionToken")
 					) {
-						await this.storeSecret(key as SecretKey, newModeConfiguration[key] as string)
+						await this.storeSecret(key as SecretKey, value as string)
 					}
 				}
 			}
@@ -1563,7 +1571,7 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 			uriScheme: vscode.env.uriScheme,
 			currentTaskItem: this.percy?.taskId ? (taskHistory || []).find((item) => item.id === this.percy?.taskId) : undefined,
 			checkpointTrackerErrorMessage: this.percy?.checkpointTrackerErrorMessage,
-			percyMessages: this.percy?.clineMessages || [],
+			percyMessages: this.percy?.percyMessages || [],
 			taskHistory: (taskHistory || []).filter((item) => item.ts && item.task).sort((a, b) => b.ts - a.ts),
 			shouldShowAnnouncement: lastShownAnnouncementId !== this.latestAnnouncementId,
 			platform: process.platform as Platform,
@@ -1650,7 +1658,7 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 			lmStudioModelId,
 			lmStudioBaseUrl,
 			anthropicBaseUrl,
-			anthropicThinking,
+			thinkingMode,
 			maxTokens,
 			geminiApiKey,
 			openAiNativeApiKey,
@@ -1701,7 +1709,7 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 			this.getGlobalState("lmStudioModelId") as Promise<string | undefined>,
 			this.getGlobalState("lmStudioBaseUrl") as Promise<string | undefined>,
 			this.getGlobalState("anthropicBaseUrl") as Promise<string | undefined>,
-			this.getGlobalState("anthropicThinking") as Promise<any | undefined>,
+			this.getGlobalState("thinkingMode") as Promise<any | undefined>,
 			this.getGlobalState("maxTokens") as Promise<number | undefined>,
 			this.getSecret("geminiApiKey") as Promise<string | undefined>,
 			this.getSecret("openAiNativeApiKey") as Promise<string | undefined>,
@@ -1775,7 +1783,7 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 				lmStudioModelId,
 				lmStudioBaseUrl,
 				anthropicBaseUrl,
-				anthropicThinking,
+				thinkingMode,
 				maxTokens,
 				geminiApiKey,
 				openAiNativeApiKey,

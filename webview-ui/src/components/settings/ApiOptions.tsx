@@ -127,18 +127,18 @@ const ApiOptions = ({ showModelOptions, apiErrorMessage, modelIdErrorMessage, is
 	const [lmStudioModels, setLmStudioModels] = useState<string[]>([])
 	const [vsCodeLmModels, setVsCodeLmModels] = useState<vscodemodels.LanguageModelChatSelector[]>([])
 	const [anthropicBaseUrlSelected, setAnthropicBaseUrlSelected] = useState(!!apiConfiguration?.anthropicBaseUrl)
-	const [anthropicThinkingSelected, setAnthropicThinkingSelected] = useState(!!apiConfiguration?.anthropicThinking)
+	const [thinkingModeEnabled, setThinkingModeEnabled] = useState(!!apiConfiguration?.thinkingMode)
 	const [thinkingBudgetInput, setThinkingBudgetInput] = useState(
-		apiConfiguration?.anthropicThinking?.budget_tokens?.toString() || "8192",
+		apiConfiguration?.thinkingMode?.budgetTokens?.toString() || "8192",
 	)
 	const [maxTokensInput, setMaxTokensInput] = useState((apiConfiguration?.maxTokens || 8192).toString())
 
 	// Initialize state when component mounts or when apiConfiguration changes
 	useEffect(() => {
-		setAnthropicThinkingSelected(!!apiConfiguration?.anthropicThinking)
-		setThinkingBudgetInput(apiConfiguration?.anthropicThinking?.budget_tokens?.toString() || "8192")
+		setThinkingModeEnabled(!!apiConfiguration?.thinkingMode)
+		setThinkingBudgetInput(apiConfiguration?.thinkingMode?.budgetTokens?.toString() || "8192")
 		setMaxTokensInput((apiConfiguration?.maxTokens || 8192).toString())
-	}, [apiConfiguration?.anthropicThinking, apiConfiguration?.maxTokens])
+	}, [apiConfiguration]) // Track the entire apiConfiguration object to detect mode changes
 	const [azureApiVersionSelected, setAzureApiVersionSelected] = useState(!!apiConfiguration?.azureApiVersion)
 	const [modelConfigurationSelected, setModelConfigurationSelected] = useState(false)
 	const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false)
@@ -1251,31 +1251,31 @@ const ApiOptions = ({ showModelOptions, apiErrorMessage, modelIdErrorMessage, is
 							{selectedProvider === "anthropic" && selectedModelId === "claude-3-7-sonnet-20250219" && (
 								<div style={{ marginTop: "10px" }}>
 									<VSCodeCheckbox
-										checked={anthropicThinkingSelected}
+										checked={thinkingModeEnabled}
 										onChange={(e: any) => {
 											const isChecked = e.target.checked === true
-											setAnthropicThinkingSelected(isChecked)
+											setThinkingModeEnabled(isChecked)
 
 											// Get the current max tokens value or default to 8192
 											const currentMaxTokens = apiConfiguration?.maxTokens || 8192
 
 											setApiConfiguration({
 												...apiConfiguration,
-												anthropicThinking: isChecked
+												thinkingMode: isChecked
 													? {
-															type: "enabled",
+															enabled: true,
 															// Ensure thinking budget is less than max tokens
-															budget_tokens: Math.min(
-																apiConfiguration?.anthropicThinking?.budget_tokens || 8192,
+															budgetTokens: Math.min(
+																apiConfiguration?.thinkingMode?.budgetTokens || 8192,
 																currentMaxTokens,
 															),
 														}
-													: null,
+													: undefined,
 											})
 										}}>
 										Enable thinking mode
 									</VSCodeCheckbox>
-									{apiConfiguration?.anthropicThinking && (
+									{apiConfiguration?.thinkingMode && (
 										<div style={{ marginTop: "5px" }}>
 											<VSCodeTextField
 												value={thinkingBudgetInput}
@@ -1298,9 +1298,9 @@ const ApiOptions = ({ showModelOptions, apiErrorMessage, modelIdErrorMessage, is
 
 													setApiConfiguration({
 														...apiConfiguration,
-														anthropicThinking: {
-															type: "enabled",
-															budget_tokens: validBudget,
+														thinkingMode: {
+															enabled: true,
+															budgetTokens: validBudget,
 														},
 													})
 												}}
@@ -1347,15 +1347,15 @@ const ApiOptions = ({ showModelOptions, apiErrorMessage, modelIdErrorMessage, is
 
 												// Only update thinking budget if it exists and new max tokens is LOWER than current budget
 												if (
-													apiConfiguration?.anthropicThinking &&
-													validMaxTokens < apiConfiguration.anthropicThinking.budget_tokens
+													apiConfiguration?.thinkingMode &&
+													validMaxTokens < apiConfiguration.thinkingMode.budgetTokens
 												) {
 													setApiConfiguration({
 														...apiConfiguration,
 														maxTokens: validMaxTokens,
-														anthropicThinking: {
-															type: "enabled",
-															budget_tokens: validMaxTokens,
+														thinkingMode: {
+															enabled: true,
+															budgetTokens: validMaxTokens,
 														},
 													})
 												}

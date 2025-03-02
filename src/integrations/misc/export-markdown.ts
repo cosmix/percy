@@ -48,7 +48,7 @@ export async function downloadTask(dateTs: number, conversationHistory: Anthropi
 }
 
 export function formatContentBlockToMarkdown(
-	block: Anthropic.TextBlockParam | Anthropic.ImageBlockParam | Anthropic.ToolUseBlockParam | Anthropic.ToolResultBlockParam,
+	block: Anthropic.ContentBlockParam,
 	// messages: Anthropic.MessageParam[]
 ): string {
 	switch (block.type) {
@@ -56,6 +56,8 @@ export function formatContentBlockToMarkdown(
 			return block.text
 		case "image":
 			return `[Image]`
+		case "document":
+			return `[Document]`
 		case "tool_use":
 			let input: string
 			if (typeof block.input === "object" && block.input !== null) {

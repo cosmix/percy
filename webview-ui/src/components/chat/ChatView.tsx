@@ -20,7 +20,6 @@ import { useExtensionState } from "../../context/ExtensionStateContext"
 import { vscode } from "../../utils/vscode"
 import HistoryPreview from "../history/HistoryPreview"
 import { normalizeApiConfiguration } from "../settings/ApiOptions"
-import Announcement from "./Announcement"
 import AutoApproveMenu from "./AutoApproveMenu"
 import BrowserSessionRow from "./BrowserSessionRow"
 import ChatRow from "./ChatRow"
@@ -789,7 +788,6 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 						flexDirection: "column",
 						paddingBottom: "10px",
 					}}>
-					{showAnnouncement && <Announcement version={version} hideAnnouncement={hideAnnouncement} />}
 					<div style={{ padding: "0 20px", flexShrink: 0 }}>
 						<h2>What can I do for you?</h2>
 						<p>

@@ -17,6 +17,12 @@ export type ApiProvider =
 	| "litellm"
 	| "xai"
 
+// Generic thinking mode configuration
+export interface ThinkingModeOptions {
+	enabled: boolean
+	budgetTokens: number
+}
+
 export interface ApiHandlerOptions {
 	apiModelId?: string
 	apiKey?: string // anthropic
@@ -24,10 +30,7 @@ export interface ApiHandlerOptions {
 	liteLlmModelId?: string
 	liteLlmApiKey?: string
 	anthropicBaseUrl?: string
-	anthropicThinking?: {
-		type: "enabled"
-		budget_tokens: number
-	} | null // Thinking options for Claude 3.7 Sonnet
+	thinkingMode?: ThinkingModeOptions // Generic thinking mode options
 	maxTokens?: number // Custom max tokens value for the model
 	openRouterApiKey?: string
 	openRouterModelId?: string

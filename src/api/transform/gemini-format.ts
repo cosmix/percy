@@ -11,16 +11,7 @@ import {
 	TextPart,
 } from "@google/generative-ai"
 
-export function convertAnthropicContentToGemini(
-	content:
-		| string
-		| Array<
-				| Anthropic.Messages.TextBlockParam
-				| Anthropic.Messages.ImageBlockParam
-				| Anthropic.Messages.ToolUseBlockParam
-				| Anthropic.Messages.ToolResultBlockParam
-		  >,
-): Part[] {
+export function convertAnthropicContentToGemini(content: string | Array<Anthropic.ContentBlockParam>): Part[] {
 	if (typeof content === "string") {
 		return [{ text: content } as TextPart]
 	}
@@ -87,8 +78,12 @@ export function convertAnthropicContentToGemini(
 						),
 					]
 				}
+			case "document":
+				// Convert document blocks to text parts - handle generically
+				return { text: `[Document content]` } as TextPart
 			default:
-				throw new Error(`Unsupported content block type: ${(block as any).type}`)
+				// Handle unknown block types by converting to text
+				return { text: `[Unsupported content type: ${(block as any).type}]` } as TextPart
 		}
 	})
 }

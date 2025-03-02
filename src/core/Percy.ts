@@ -47,7 +47,7 @@ import {
 import { getApiMetrics } from "../shared/getApiMetrics"
 import { HistoryItem } from "../shared/HistoryItem"
 import { PercyAskResponse, PercyCheckpointRestore } from "../shared/WebviewMessage"
-import { calculateApiCost } from "../utils/cost"
+import { calculateApiCostAnthropic } from "../utils/cost"
 import { fileExistsAtPath } from "../utils/fs"
 import { arePathsEqual, getReadablePath } from "../utils/path"
 import { fixModelHtmlEscaping, removeInvalidChars } from "../utils/string"
@@ -63,9 +63,7 @@ import { PercyProvider, GlobalFileNames } from "./webview/PercyProvider"
 const cwd = vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath).at(0) ?? path.join(os.homedir(), "Desktop") // may or may not exist but fs checking existence would immediately ask for permission which would be bad UX, need to come up with a better solution
 
 type ToolResponse = string | Array<Anthropic.TextBlockParam | Anthropic.ImageBlockParam>
-type UserContent = Array<
-	Anthropic.TextBlockParam | Anthropic.ImageBlockParam | Anthropic.ToolUseBlockParam | Anthropic.ToolResultBlockParam
->
+type UserContent = Array<Anthropic.ContentBlockParam>
 
 export class Percy {
 	readonly taskId: string
@@ -79,8 +77,8 @@ export class Percy {
 	private browserSettings: BrowserSettings
 	private chatSettings: ChatSettings
 	apiConversationHistory: Anthropic.MessageParam[] = []
-	clineMessages: PercyMessage[] = []
-	private clineIgnoreController: PercyIgnoreController
+	percyMessages: PercyMessage[] = []
+	private percyIgnoreController: PercyIgnoreController
 	private askResponse?: PercyAskResponse
 	private askResponseText?: string
 	private askResponseImages?: string[]
@@ -124,8 +122,8 @@ export class Percy {
 		images?: string[],
 		historyItem?: HistoryItem,
 	) {
-		this.clineIgnoreController = new PercyIgnoreController(cwd)
-		this.clineIgnoreController.initialize().catch((error) => {
+		this.percyIgnoreController = new PercyIgnoreController(cwd)
+		this.percyIgnoreController.initialize().catch((error) => {
 			console.error("Failed to initialize PercyIgnoreController:", error)
 		})
 		this.providerRef = new WeakRef(provider)
@@ -217,16 +215,16 @@ export class Percy {
 	}
 
 	private async addToPercyMessages(message: PercyMessage) {
-		// these values allow us to reconstruct the conversation history at the time this cline message was created
-		// it's important that apiConversationHistory is initialized before we add cline messages
-		message.conversationHistoryIndex = this.apiConversationHistory.length - 1 // NOTE: this is the index of the last added message which is the user message, and once the clinemessages have been presented we update the apiconversationhistory with the completed assistant message. This means when resetting to a message, we need to +1 this index to get the correct assistant message that this tool use corresponds to
+		// these values allow us to reconstruct the conversation history at the time this percy message was created
+		// it's important that apiConversationHistory is initialized before we add percy messages
+		message.conversationHistoryIndex = this.apiConversationHistory.length - 1 // NOTE: this is the index of the last added message which is the user message, and once the percymessages have been presented we update the apiconversationhistory with the completed assistant message. This means when resetting to a message, we need to +1 this index to get the correct assistant message that this tool use corresponds to
 		message.conversationHistoryDeletedRange = this.conversationHistoryDeletedRange
-		this.clineMessages.push(message)
+		this.percyMessages.push(message)
 		await this.savePercyMessages()
 	}
 
 	private async overwritePercyMessages(newMessages: PercyMessage[]) {
-		this.clineMessages = newMessages
+		this.percyMessages = newMessages
 		await this.savePercyMessages()
 	}
 
@@ -234,13 +232,13 @@ export class Percy {
 		try {
 			const taskDir = await this.ensureTaskDirectoryExists()
 			const filePath = path.join(taskDir, GlobalFileNames.uiMessages)
-			await fs.writeFile(filePath, JSON.stringify(this.clineMessages))
+			await fs.writeFile(filePath, JSON.stringify(this.percyMessages))
 			// combined as they are in ChatView
-			const apiMetrics = getApiMetrics(combineApiRequests(combineCommandSequences(this.clineMessages.slice(1))))
-			const taskMessage = this.clineMessages[0] // first message is always the task say
+			const apiMetrics = getApiMetrics(combineApiRequests(combineCommandSequences(this.percyMessages.slice(1))))
+			const taskMessage = this.percyMessages[0] // first message is always the task say
 			const lastRelevantMessage =
-				this.clineMessages[
-					findLastIndex(this.clineMessages, (m) => !(m.ask === "resume_task" || m.ask === "resume_completed_task"))
+				this.percyMessages[
+					findLastIndex(this.percyMessages, (m) => !(m.ask === "resume_task" || m.ask === "resume_completed_task"))
 				]
 			let taskDirSize = 0
 			try {
@@ -264,15 +262,15 @@ export class Percy {
 				conversationHistoryDeletedRange: this.conversationHistoryDeletedRange,
 			})
 		} catch (error) {
-			console.error("Failed to save cline messages:", error)
+			console.error("Failed to save percy messages:", error)
 		}
 	}
 
 	async restoreCheckpoint(messageTs: number, restoreType: PercyCheckpointRestore) {
-		const messageIndex = this.clineMessages.findIndex((m) => m.ts === messageTs)
-		const message = this.clineMessages[messageIndex]
+		const messageIndex = this.percyMessages.findIndex((m) => m.ts === messageTs)
+		const message = this.percyMessages[messageIndex]
 		if (!message) {
-			console.error("Message not found", this.clineMessages)
+			console.error("Message not found", this.percyMessages)
 			return
 		}
 
@@ -320,10 +318,10 @@ export class Percy {
 					await this.overwriteApiConversationHistory(newConversationHistory)
 
 					// aggregate deleted api reqs info so we don't lose costs/tokens
-					const deletedMessages = this.clineMessages.slice(messageIndex + 1)
+					const deletedMessages = this.percyMessages.slice(messageIndex + 1)
 					const deletedApiReqsMetrics = getApiMetrics(combineApiRequests(combineCommandSequences(deletedMessages)))
 
-					const newPercyMessages = this.clineMessages.slice(0, messageIndex + 1)
+					const newPercyMessages = this.percyMessages.slice(0, messageIndex + 1)
 					await this.overwritePercyMessages(newPercyMessages) // calls savePercyMessages which saves historyItem
 
 					await this.say(
@@ -356,7 +354,7 @@ export class Percy {
 			if (restoreType !== "task") {
 				// Set isCheckpointCheckedOut flag on the message
 				// Find all checkpoint messages before this one
-				const checkpointMessages = this.clineMessages.filter((m) => m.say === "checkpoint_created")
+				const checkpointMessages = this.percyMessages.filter((m) => m.say === "checkpoint_created")
 				const currentMessageIndex = checkpointMessages.findIndex((m) => m.ts === messageTs)
 
 				// Set isCheckpointCheckedOut to false for all checkpoint messages
@@ -381,8 +379,8 @@ export class Percy {
 		}
 
 		console.log("presentMultifileDiff", messageTs)
-		const messageIndex = this.clineMessages.findIndex((m) => m.ts === messageTs)
-		const message = this.clineMessages[messageIndex]
+		const messageIndex = this.percyMessages.findIndex((m) => m.ts === messageTs)
+		const message = this.percyMessages[messageIndex]
 		if (!message) {
 			console.error("Message not found")
 			relinquishButton()
@@ -424,7 +422,7 @@ export class Percy {
 			if (seeNewChangesSinceLastTaskCompletion) {
 				// Get last task completed
 				const lastTaskCompletedMessage = findLast(
-					this.clineMessages.slice(0, messageIndex),
+					this.percyMessages.slice(0, messageIndex),
 					(m) => m.say === "completion_result",
 				) // ask is only used to relinquish control, its the last say we care about
 				// if undefined, then we get diff from beginning of git
@@ -488,8 +486,8 @@ export class Percy {
 	}
 
 	async doesLatestTaskCompletionHaveNewChanges() {
-		const messageIndex = findLastIndex(this.clineMessages, (m) => m.say === "completion_result")
-		const message = this.clineMessages[messageIndex]
+		const messageIndex = findLastIndex(this.percyMessages, (m) => m.say === "completion_result")
+		const message = this.percyMessages[messageIndex]
 		if (!message) {
 			console.error("Completion message not found")
 			return false
@@ -512,7 +510,7 @@ export class Percy {
 		}
 
 		// Get last task completed
-		const lastTaskCompletedMessage = findLast(this.clineMessages.slice(0, messageIndex), (m) => m.say === "completion_result")
+		const lastTaskCompletedMessage = findLast(this.percyMessages.slice(0, messageIndex), (m) => m.say === "completion_result")
 
 		try {
 			// Get changed files between current state and commit
@@ -550,7 +548,7 @@ export class Percy {
 		}
 		let askTs: number
 		if (partial !== undefined) {
-			const lastMessage = this.clineMessages.at(-1)
+			const lastMessage = this.percyMessages.at(-1)
 			const isUpdatingPreviousPartial =
 				lastMessage && lastMessage.partial && lastMessage.type === "ask" && lastMessage.ask === type
 			if (partial) {
@@ -626,7 +624,7 @@ export class Percy {
 			}
 		} else {
 			// this is a new non-partial message, so add it like normal
-			// const lastMessage = this.clineMessages.at(-1)
+			// const lastMessage = this.percyMessages.at(-1)
 			this.askResponse = undefined
 			this.askResponseText = undefined
 			this.askResponseImages = undefined
@@ -668,7 +666,7 @@ export class Percy {
 		}
 
 		if (partial !== undefined) {
-			const lastMessage = this.clineMessages.at(-1)
+			const lastMessage = this.percyMessages.at(-1)
 			const isUpdatingPreviousPartial =
 				lastMessage && lastMessage.partial && lastMessage.type === "say" && lastMessage.say === type
 			if (partial) {
@@ -752,9 +750,9 @@ export class Percy {
 	}
 
 	async removeLastPartialMessageIfExistsWithType(type: "ask" | "say", askOrSay: PercyAsk | PercySay) {
-		const lastMessage = this.clineMessages.at(-1)
+		const lastMessage = this.percyMessages.at(-1)
 		if (lastMessage?.partial && lastMessage.type === type && (lastMessage.ask === askOrSay || lastMessage.say === askOrSay)) {
-			this.clineMessages.pop()
+			this.percyMessages.pop()
 			await this.savePercyMessages()
 			await this.providerRef.deref()?.postStateToWebview()
 		}
@@ -763,9 +761,9 @@ export class Percy {
 	// Task lifecycle
 
 	private async startTask(task?: string, images?: string[]): Promise<void> {
-		// conversationHistory (for API) and clineMessages (for webview) need to be in sync
-		// if the extension process were killed, then on restart the clineMessages might not be empty, so we need to set it to [] when we create a new Percy client (otherwise webview would show stale messages from previous session)
-		this.clineMessages = []
+		// conversationHistory (for API) and percyMessages (for webview) need to be in sync
+		// if the extension process were killed, then on restart the percyMessages might not be empty, so we need to set it to [] when we create a new Percy client (otherwise webview would show stale messages from previous session)
+		this.percyMessages = []
 		this.apiConversationHistory = []
 
 		await this.providerRef.deref()?.postStateToWebview()
@@ -819,19 +817,19 @@ export class Percy {
 		}
 
 		await this.overwritePercyMessages(modifiedPercyMessages)
-		this.clineMessages = await this.getSavedPercyMessages()
+		this.percyMessages = await this.getSavedPercyMessages()
 
 		// Now present the cline messages to the user and ask if they want to resume (NOTE: we ran into a bug before where the apiconversationhistory wouldnt be initialized when opening a old task, and it was because we were waiting for resume)
 		// This is important in case the user deletes messages without resuming the task first
 		this.apiConversationHistory = await this.getSavedApiConversationHistory()
 
-		const lastPercyMessage = this.clineMessages
+		const lastPercyMessage = this.percyMessages
 			.slice()
 			.reverse()
 			.find((m) => !(m.ask === "resume_task" || m.ask === "resume_completed_task")) // could be multiple resume tasks
-		// const lastPercyMessage = this.clineMessages[lastPercyMessageIndex]
+		// const lastPercyMessage = this.percyMessages[lastPercyMessageIndex]
 		// could be a completion result with a command
-		// const secondLastPercyMessage = this.clineMessages
+		// const secondLastPercyMessage = this.percyMessages
 		// 	.slice()
 		// 	.reverse()
 		// 	.find(
@@ -1041,7 +1039,7 @@ export class Percy {
 			const didEndLoop = await this.recursivelyMakePercyRequests(nextUserContent, includeFileDetails, isNewTask)
 			includeFileDetails = false // we only need file details the first time
 
-			//  The way this agentic loop works is that cline will be given a task that he then calls tools to complete. unless there's an attempt_completion call, we keep responding back to him with his tool's responses until he either attempt_completion or does not use anymore tools. If he does not use anymore tools, we ask him to consider if he's completed the task and then call attempt_completion, otherwise proceed with completing the task.
+			//  The way this agentic loop works is that percy will be given a task that he then calls tools to complete. unless there's an attempt_completion call, we keep responding back to him with his tool's responses until he either attempt_completion or does not use anymore tools. If he does not use anymore tools, we ask him to consider if he's completed the task and then call attempt_completion, otherwise proceed with completing the task.
 			// There is a MAX_REQUESTS_PER_TASK limit to prevent infinite requests, but Percy is prompted to finish the task as efficiently as he can.
 
 			//const totalCost = this.calculateApiCost(totalInputTokens, totalOutputTokens)
@@ -1070,7 +1068,7 @@ export class Percy {
 		this.terminalManager.disposeAll()
 		this.urlContentFetcher.closeBrowser()
 		this.browserSession.closeBrowser()
-		this.clineIgnoreController.dispose()
+		this.percyIgnoreController.dispose()
 		await this.diffViewProvider.revertChanges() // need to await for when we want to make sure directories/files are reverted before re-starting the task from a checkpoint
 	}
 
@@ -1079,7 +1077,7 @@ export class Percy {
 	async saveCheckpoint(isAttemptCompletionMessage: boolean = false) {
 		const commitHash = await this.checkpointTracker?.commit() // silently fails for now
 		// Set isCheckpointCheckedOut to false for all checkpoint_created messages
-		this.clineMessages.forEach((message) => {
+		this.percyMessages.forEach((message) => {
 			if (message.say === "checkpoint_created") {
 				message.isCheckpointCheckedOut = false
 			}
@@ -1088,7 +1086,7 @@ export class Percy {
 			if (!isAttemptCompletionMessage) {
 				// For non-attempt completion we just say checkpoints
 				await this.say("checkpoint_created", commitHash)
-				const lastCheckpointMessage = findLast(this.clineMessages, (m) => m.say === "checkpoint_created")
+				const lastCheckpointMessage = findLast(this.percyMessages, (m) => m.say === "checkpoint_created")
 				if (lastCheckpointMessage) {
 					lastCheckpointMessage.lastCheckpointHash = commitHash
 					await this.savePercyMessages()
@@ -1096,7 +1094,7 @@ export class Percy {
 			} else {
 				// For attempt_completion, find the last completion_result message and set its checkpoint hash. This will be used to present the 'see new changes' button
 				const lastCompletionResultMessage = findLast(
-					this.clineMessages,
+					this.percyMessages,
 					(m) => m.say === "completion_result" || m.ask === "completion_result",
 				)
 				if (lastCompletionResultMessage) {
@@ -1107,8 +1105,8 @@ export class Percy {
 
 			// Previously we checkpointed every message, but this is excessive and unnecessary.
 			// // Start from the end and work backwards until we find a tool use or another message with a hash
-			// for (let i = this.clineMessages.length - 1; i >= 0; i--) {
-			// 	const message = this.clineMessages[i]
+			// for (let i = this.percyMessages.length - 1; i >= 0; i--) {
+			// 	const message = this.percyMessages[i]
 			// 	if (message.lastCheckpointHash) {
 			// 		// Found a message with a hash, so we can stop
 			// 		break
@@ -1339,7 +1337,7 @@ export class Percy {
 			throw new Error("MCP hub not available")
 		}
 
-		const disableBrowserTool = vscode.workspace.getConfiguration("cline").get<boolean>("disableBrowserTool") ?? false
+		const disableBrowserTool = vscode.workspace.getConfiguration("percy").get<boolean>("disableBrowserTool") ?? false
 		const modelSupportsComputerUse = this.api.getModel().info.supportsComputerUse ?? false
 
 		const supportsComputerUse = modelSupportsComputerUse && !disableBrowserTool // only enable computer use if the model supports it and the user hasn't disabled it
@@ -1360,7 +1358,7 @@ export class Percy {
 			}
 		}
 
-		const clineIgnoreContent = this.clineIgnoreController.clineIgnoreContent
+		const clineIgnoreContent = this.percyIgnoreController.clineIgnoreContent
 		let clineIgnoreInstructions: string | undefined
 		if (clineIgnoreContent) {
 			clineIgnoreInstructions = `# .clineignore\n\n(The following is provided by a root-level .clineignore file where the user has specified files and directories that should not be accessed. When using list_files, you'll notice a ${LOCK_TEXT_SYMBOL} next to files that are blocked. Attempting to access the file's contents e.g. through read_file will result in an error.)\n\n${clineIgnoreContent}\n.clineignore`
@@ -1373,7 +1371,7 @@ export class Percy {
 
 		// If the previous API request's total token usage is close to the context window, truncate the conversation history to free up space for the new request
 		if (previousApiReqIndex >= 0) {
-			const previousRequest = this.clineMessages[previousApiReqIndex]
+			const previousRequest = this.percyMessages[previousApiReqIndex]
 			if (previousRequest && previousRequest.text) {
 				const { tokensIn, tokensOut, cacheWrites, cacheReads }: PercyApiReqInfo = JSON.parse(previousRequest.text)
 				const totalTokens = (tokensIn || 0) + (tokensOut || 0) + (cacheWrites || 0) + (cacheReads || 0)
@@ -1723,10 +1721,10 @@ export class Percy {
 							break
 						}
 
-						const accessAllowed = this.clineIgnoreController.validateAccess(relPath)
+						const accessAllowed = this.percyIgnoreController.validateAccess(relPath)
 						if (!accessAllowed) {
 							await this.say("percyignore_error", relPath)
-							pushToolResult(formatResponse.toolError(formatResponse.clineIgnoreError(relPath)))
+							pushToolResult(formatResponse.toolError(formatResponse.percyIgnoreError(relPath)))
 
 							break
 						}
@@ -1758,12 +1756,12 @@ export class Percy {
 								}
 
 								try {
-									newContent = await constructNewFileContent(
+									const fileChangeResult = await constructNewFileContent(
 										diff,
 										this.diffViewProvider.originalContent || "",
 										!block.partial,
-										this.diffViewProvider.isStreamingMode, // Pass streaming mode to defer expensive matching
 									)
+									newContent = fileChangeResult.content
 								} catch (error) {
 									await this.say("diff_error", relPath)
 									pushToolResult(
@@ -1822,11 +1820,16 @@ export class Percy {
 								}
 								// update editor
 								if (!this.diffViewProvider.isEditing) {
-									// open the editor in streaming mode and prepare to stream content in
-									await this.diffViewProvider.open(relPath, true)
+									// open the editor and prepare to stream content in
+									await this.diffViewProvider.open(relPath)
 								}
-								// editor is open, stream content in with deferred diffing
-								await this.diffViewProvider.update(newContent, false)
+								// editor is open, stream content in
+								const fileChangeResult = await constructNewFileContent(
+									diff || "",
+									this.diffViewProvider.originalContent || "",
+									false,
+								)
+								await this.diffViewProvider.update(fileChangeResult, false)
 								break
 							} else {
 								if (!relPath) {
@@ -1863,14 +1866,12 @@ export class Percy {
 									await this.diffViewProvider.open(relPath)
 								}
 
-								// If we were in streaming mode, finalize the content
-								// This will handle the update with isFinal=true internally
-								if (this.diffViewProvider.isStreamingMode) {
-									await this.diffViewProvider.finalizeStreamedContent()
-								} else {
-									// Only update directly if we weren't in streaming mode
-									await this.diffViewProvider.update(newContent, true)
-								}
+								const fileChangeResult = await constructNewFileContent(
+									diff || "",
+									this.diffViewProvider.originalContent || "",
+									true,
+								)
+								await this.diffViewProvider.update(fileChangeResult, true)
 								await delay(300) // wait for diff view to update
 								this.diffViewProvider.scrollToFirstDiff()
 								// showOmissionWarning(this.diffViewProvider.originalContent || "", newContent)
@@ -2019,10 +2020,10 @@ export class Percy {
 									break
 								}
 
-								const accessAllowed = this.clineIgnoreController.validateAccess(relPath)
+								const accessAllowed = this.percyIgnoreController.validateAccess(relPath)
 								if (!accessAllowed) {
 									await this.say("percyignore_error", relPath)
-									pushToolResult(formatResponse.toolError(formatResponse.clineIgnoreError(relPath)))
+									pushToolResult(formatResponse.toolError(formatResponse.percyIgnoreError(relPath)))
 
 									break
 								}
@@ -2100,7 +2101,7 @@ export class Percy {
 									absolutePath,
 									files,
 									didHitLimit,
-									this.clineIgnoreController,
+									this.percyIgnoreController,
 								)
 								const completeMessage = JSON.stringify({
 									...sharedMessageProps,
@@ -2165,7 +2166,7 @@ export class Percy {
 								const absolutePath = path.resolve(cwd, relDirPath)
 								const result = await parseSourceCodeForDefinitionsTopLevel(
 									absolutePath,
-									this.clineIgnoreController,
+									this.percyIgnoreController,
 								)
 
 								const completeMessage = JSON.stringify({
@@ -2246,7 +2247,7 @@ export class Percy {
 									absolutePath,
 									regex,
 									filePattern,
-									this.clineIgnoreController,
+									this.percyIgnoreController,
 								)
 
 								const completeMessage = JSON.stringify({
@@ -2489,11 +2490,11 @@ export class Percy {
 								}
 								this.consecutiveMistakeCount = 0
 
-								const ignoredFileAttemptedToAccess = this.clineIgnoreController.validateCommand(command)
+								const ignoredFileAttemptedToAccess = this.percyIgnoreController.validateCommand(command)
 								if (ignoredFileAttemptedToAccess) {
 									await this.say("percyignore_error", ignoredFileAttemptedToAccess)
 									pushToolResult(
-										formatResponse.toolError(formatResponse.clineIgnoreError(ignoredFileAttemptedToAccess)),
+										formatResponse.toolError(formatResponse.percyIgnoreError(ignoredFileAttemptedToAccess)),
 									)
 
 									break
@@ -2888,7 +2889,7 @@ export class Percy {
 							// Add newchanges flag if there are new changes to the workspace
 
 							const hasNewChanges = await this.doesLatestTaskCompletionHaveNewChanges()
-							const lastCompletionResultMessage = findLast(this.clineMessages, (m) => m.say === "completion_result")
+							const lastCompletionResultMessage = findLast(this.percyMessages, (m) => m.say === "completion_result")
 							if (
 								lastCompletionResultMessage &&
 								hasNewChanges &&
@@ -2900,13 +2901,13 @@ export class Percy {
 						}
 
 						try {
-							const lastMessage = this.clineMessages.at(-1)
+							const lastMessage = this.percyMessages.at(-1)
 							if (block.partial) {
 								if (command) {
 									// the attempt_completion text is done, now we're getting command
 									// remove the previous partial attempt_completion ask, replace with say, post state to webview, then stream command
 
-									// const secondLastMessage = this.clineMessages.at(-2)
+									// const secondLastMessage = this.percyMessages.at(-2)
 									// NOTE: we do not want to auto approve a command run as part of the attempt_completion tool
 									if (lastMessage && lastMessage.ask === "command") {
 										// update command
@@ -3108,10 +3109,10 @@ export class Percy {
 		}
 
 		// get previous api req's index to check token usage and determine if we need to truncate conversation history
-		const previousApiReqIndex = findLastIndex(this.clineMessages, (m) => m.say === "api_req_started")
+		const previousApiReqIndex = findLastIndex(this.percyMessages, (m) => m.say === "api_req_started")
 
 		// Save checkpoint if this is the first API request
-		const isFirstRequest = this.clineMessages.filter((m) => m.say === "api_req_started").length === 0
+		const isFirstRequest = this.percyMessages.filter((m) => m.say === "api_req_started").length === 0
 		if (isFirstRequest) {
 			await this.say("checkpoint_created") // no hash since we need to wait for CheckpointTracker to be initialized
 		}
@@ -3142,7 +3143,7 @@ export class Percy {
 		// Now that checkpoint tracker is initialized, update the dummy checkpoint_created message with the commit hash. (This is necessary since we use the API request loading as an opportunity to initialize the checkpoint tracker, which can take some time)
 		if (isFirstRequest) {
 			const commitHash = await this.checkpointTracker?.commit()
-			const lastCheckpointMessage = findLast(this.clineMessages, (m) => m.say === "checkpoint_created")
+			const lastCheckpointMessage = findLast(this.percyMessages, (m) => m.say === "checkpoint_created")
 			if (lastCheckpointMessage) {
 				lastCheckpointMessage.lastCheckpointHash = commitHash
 				await this.savePercyMessages()
@@ -3160,8 +3161,8 @@ export class Percy {
 		})
 
 		// since we sent off a placeholder api_req_started message to update the webview while waiting to actually start the API request (to load potential details for example), we need to update the text of that message
-		const lastApiReqIndex = findLastIndex(this.clineMessages, (m) => m.say === "api_req_started")
-		this.clineMessages[lastApiReqIndex].text = JSON.stringify({
+		const lastApiReqIndex = findLastIndex(this.percyMessages, (m) => m.say === "api_req_started")
+		this.percyMessages[lastApiReqIndex].text = JSON.stringify({
 			request: userContent.map((block) => formatContentBlockToMarkdown(block)).join("\n\n"),
 		} satisfies PercyApiReqInfo)
 		await this.savePercyMessages()
@@ -3178,15 +3179,21 @@ export class Percy {
 			// fortunately api_req_finished was always parsed out for the gui anyways, so it remains solely for legacy purposes to keep track of prices in tasks from history
 			// (it's worth removing a few months from now)
 			const updateApiReqMsg = (cancelReason?: PercyApiReqCancelReason, streamingFailedMessage?: string) => {
-				this.clineMessages[lastApiReqIndex].text = JSON.stringify({
-					...JSON.parse(this.clineMessages[lastApiReqIndex].text || "{}"),
+				this.percyMessages[lastApiReqIndex].text = JSON.stringify({
+					...JSON.parse(this.percyMessages[lastApiReqIndex].text || "{}"),
 					tokensIn: inputTokens,
 					tokensOut: outputTokens,
 					cacheWrites: cacheWriteTokens,
 					cacheReads: cacheReadTokens,
 					cost:
 						totalCost ??
-						calculateApiCost(this.api.getModel().info, inputTokens, outputTokens, cacheWriteTokens, cacheReadTokens),
+						calculateApiCostAnthropic(
+							this.api.getModel().info,
+							inputTokens,
+							outputTokens,
+							cacheWriteTokens,
+							cacheReadTokens,
+						),
 					cancelReason,
 					streamingFailedMessage,
 				} satisfies PercyApiReqInfo)
@@ -3198,7 +3205,7 @@ export class Percy {
 				}
 
 				// if last message is a partial we need to update and save it
-				const lastMessage = this.clineMessages.at(-1)
+				const lastMessage = this.percyMessages.at(-1)
 				if (lastMessage && lastMessage.partial) {
 					// lastMessage.ts = Date.now() DO NOT update ts since it is used as a key for virtuoso list
 					lastMessage.partial = false
@@ -3442,8 +3449,8 @@ export class Percy {
 			.filter(Boolean)
 			.map((absolutePath) => path.relative(cwd, absolutePath))
 
-		// Filter paths through clineIgnoreController
-		const allowedVisibleFiles = this.clineIgnoreController
+		// Filter paths through percyIgnoreController
+		const allowedVisibleFiles = this.percyIgnoreController
 			.filterPaths(visibleFilePaths)
 			.map((p) => p.toPosix())
 			.join("\n")
@@ -3461,8 +3468,8 @@ export class Percy {
 			.filter(Boolean)
 			.map((absolutePath) => path.relative(cwd, absolutePath))
 
-		// Filter paths through clineIgnoreController
-		const allowedOpenTabs = this.clineIgnoreController
+		// Filter paths through percyIgnoreController
+		const allowedOpenTabs = this.percyIgnoreController
 			.filterPaths(openTabPaths)
 			.map((p) => p.toPosix())
 			.join("\n")
@@ -3582,7 +3589,7 @@ export class Percy {
 				details += "(Desktop files not shown automatically. Use list_files to explore if needed.)"
 			} else {
 				const [files, didHitLimit] = await listFiles(cwd, true, 200)
-				const result = formatResponse.formatFilesList(cwd, files, didHitLimit, this.clineIgnoreController)
+				const result = formatResponse.formatFilesList(cwd, files, didHitLimit, this.percyIgnoreController)
 				details += result
 			}
 		}

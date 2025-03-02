@@ -31,7 +31,7 @@ export const ExtensionStateContextProvider: React.FC<{
 }> = ({ children }) => {
 	const [state, setState] = useState<ExtensionState>({
 		version: "",
-		clineMessages: [],
+		percyMessages: [],
 		taskHistory: [],
 		shouldShowAnnouncement: false,
 		autoApprovalSettings: DEFAULT_AUTO_APPROVAL_SETTINGS,
@@ -99,7 +99,7 @@ export const ExtensionStateContextProvider: React.FC<{
 					if (lastIndex !== -1) {
 						const newPercyMessages = [...prevState.percyMessages]
 						newPercyMessages[lastIndex] = partialMessage
-						return { ...prevState, clineMessages: newPercyMessages }
+						return { ...prevState, percyMessages: newPercyMessages }
 					}
 					return prevState
 				})

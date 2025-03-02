@@ -63,10 +63,11 @@ export function parseAssistantMessage(assistantMessage: string) {
 					const toolContent = accumulator.slice(currentToolUseStartIndex)
 					const contentStartTag = `<${contentParamName}>`
 					const contentEndTag = `</${contentParamName}>`
+
 					const contentStartIndex = toolContent.indexOf(contentStartTag) + contentStartTag.length
 					const contentEndIndex = toolContent.lastIndexOf(contentEndTag)
 					if (contentStartIndex !== -1 && contentEndIndex !== -1 && contentEndIndex > contentStartIndex) {
-						currentToolUse.params[contentParamName] = toolContent.slice(contentStartIndex, contentEndIndex).trim()
+						currentToolUse.params[contentParamName] = toolContent.slice(contentStartIndex, contentEndIndex)
 					}
 				}
 

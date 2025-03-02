@@ -8,7 +8,7 @@ export const formatResponse = {
 
 	toolError: (error?: string) => `The tool execution failed with the following error:\n<error>\n${error}\n</error>`,
 
-	clineIgnoreError: (path: string) =>
+	percyIgnoreError: (path: string) =>
 		`Access to ${path} is blocked by the .clineignore file settings. You must try to continue in the task without using this file, or ask the user to update the .clineignore file.`,
 
 	noToolsUsed: () =>

@@ -4,6 +4,7 @@ import { ApiHandler } from "../"
 import { ApiHandlerOptions, bedrockDefaultModelId, BedrockModelId, bedrockModels, ModelInfo } from "../../shared/api"
 import { ApiStream } from "../transform/stream"
 import { fromNodeProviderChain } from "@aws-sdk/credential-providers"
+import { getThinkingBudget, getThinkingTemperature, isThinkingEnabled } from "../utils/thinking-mode"
 
 // https://docs.anthropic.com/en/api/claude-on-amazon-bedrock
 export class AwsBedrockHandler implements ApiHandler {
@@ -21,13 +22,43 @@ export class AwsBedrockHandler implements ApiHandler {
 		// initialization, and allowing for session renewal if necessary as well
 		let client = await this.getClient()
 
+		const model = this.getModel()
+
+		// Determine max_tokens value based on model capabilities
+		let maxTokens = model.info.maxTokens || 8192
+		if (model.info.supportsThinking) {
+			maxTokens = Math.min(this.options.maxTokens || 8192, 64000)
+		}
+
+		// Default temperature is 0
+		let temperature = 0
+
+		// Prepare request options
+		const requestOptions: Record<string, any> = {}
+
+		// Get thinking budget using utility function
+		const thinkingBudget = getThinkingBudget(model.info, this.options.thinkingMode, maxTokens)
+
+		// Add thinking parameter if budget is greater than 0
+		if (thinkingBudget > 0) {
+			// Set thinking parameter
+			requestOptions.thinking = {
+				type: "enabled",
+				budget_tokens: thinkingBudget,
+			}
+
+			// Set temperature using utility function
+			temperature = getThinkingTemperature(model.info, this.options.thinkingMode) || 0
+		}
+
 		const stream = await client.messages.create({
 			model: modelId,
-			max_tokens: this.getModel().info.maxTokens || 8192,
-			temperature: 0,
+			max_tokens: maxTokens,
+			temperature: temperature,
 			system: systemPrompt,
 			messages,
 			stream: true,
+			...requestOptions,
 		})
 		for await (const chunk of stream) {
 			switch (chunk.type) {
@@ -61,6 +92,27 @@ export class AwsBedrockHandler implements ApiHandler {
 								text: chunk.content_block.text,
 							}
 							break
+						case "thinking":
+							// Convert thinking chunks to reasoning chunks for display in the UI
+							if (chunk.content_block.thinking) {
+								yield {
+									type: "reasoning",
+									reasoning: chunk.content_block.thinking,
+								}
+								// Also yield the original thinking chunk for internal use
+								yield {
+									type: "thinking",
+									thinking: chunk.content_block.thinking,
+									signature: chunk.content_block.signature,
+								}
+							}
+							break
+						case "redacted_thinking":
+							yield {
+								type: "redacted_thinking",
+								data: chunk.content_block.data,
+							}
+							break
 					}
 					break
 				case "content_block_delta":
@@ -69,6 +121,28 @@ export class AwsBedrockHandler implements ApiHandler {
 							yield {
 								type: "text",
 								text: chunk.delta.text,
+							}
+							break
+						case "thinking_delta":
+							// Convert thinking_delta chunks to reasoning chunks for display in the UI
+							if (chunk.delta.thinking) {
+								yield {
+									type: "reasoning",
+									reasoning: chunk.delta.thinking,
+								}
+								// Also yield the original thinking_delta chunk for internal use
+								yield {
+									type: "thinking_delta",
+									thinking: chunk.delta.thinking,
+								}
+							}
+							break
+						case "signature_delta":
+							if (chunk.delta.signature) {
+								yield {
+									type: "signature_delta",
+									signature: chunk.delta.signature,
+								}
 							}
 							break
 					}
