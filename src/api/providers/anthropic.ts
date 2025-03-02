@@ -32,13 +32,7 @@ export class AnthropicHandler implements ApiHandler {
 		// Determine temperature value (default is 0)
 		let temperature = 0
 
-		// For models that support thinking (like Claude 3.7 Sonnet), use custom max tokens value
-		if (model.info.supportsThinking) {
-			maxTokens = Math.min(this.options.maxTokens || 8192, 64000)
-		} else {
-			// For other models, use the model's default max tokens
-			maxTokens = model.info.maxTokens || 8192
-		}
+		maxTokens = Math.min(this.options.maxTokens || 8192, 64000)
 
 		// Get thinking budget using utility function
 		const thinkingBudget = getThinkingBudget(model.info, this.options.thinkingMode, maxTokens)

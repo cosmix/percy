@@ -144,10 +144,47 @@ const ApiOptions = ({ showModelOptions, apiErrorMessage, modelIdErrorMessage, is
 	const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false)
 
 	const handleInputChange = (field: keyof ApiConfiguration) => (event: any) => {
-		setApiConfiguration({
-			...apiConfiguration,
-			[field]: event.target.value,
-		})
+		const newValue = event.target.value
+
+		// Special handling for apiModelId changes
+		if (field === "apiModelId" || field === "openRouterModelId") {
+			const newConfig = {
+				...apiConfiguration,
+				[field]: newValue,
+			}
+
+			// Get the new model info
+			const { selectedModelInfo } = normalizeApiConfiguration(newConfig)
+
+			// Get model's max tokens limit
+			const modelMaxTokens =
+				selectedModelInfo?.maxTokens && selectedModelInfo.maxTokens > 0 ? selectedModelInfo.maxTokens : 8192
+
+			// Adjust maxTokens if it exceeds the new model's limit
+			const currentMaxTokens = apiConfiguration?.maxTokens || 8192
+			const validMaxTokens = Math.min(currentMaxTokens, modelMaxTokens)
+
+			// Update maxTokens input field
+			setMaxTokensInput(validMaxTokens.toString())
+
+			// Adjust thinking budget if needed
+			if (apiConfiguration?.thinkingMode && validMaxTokens < apiConfiguration.thinkingMode.budgetTokens) {
+				setThinkingBudgetInput(validMaxTokens.toString())
+				newConfig.thinkingMode = {
+					...apiConfiguration.thinkingMode,
+					budgetTokens: validMaxTokens,
+				}
+			}
+
+			// Update configuration with adjusted values
+			newConfig.maxTokens = validMaxTokens
+			setApiConfiguration(newConfig)
+		} else {
+			setApiConfiguration({
+				...apiConfiguration,
+				[field]: newValue,
+			})
+		}
 	}
 
 	const { selectedProvider, selectedModelId, selectedModelInfo } = useMemo(() => {
@@ -1234,6 +1271,67 @@ const ApiOptions = ({ showModelOptions, apiErrorMessage, modelIdErrorMessage, is
 				</p>
 			)}
 
+			{/* Max Tokens setting for all models */}
+			{showModelOptions && (
+				<div style={{ marginTop: "10px" }}>
+					<VSCodeTextField
+						value={maxTokensInput}
+						style={{ width: "100%" }}
+						onInput={(e: any) => {
+							// Just update the input field value without validation
+							setMaxTokensInput(e.target.value)
+						}}
+						onBlur={(e: any) => {
+							// Apply validation when the field loses focus
+							const maxTokens = parseInt(e.target.value, 10)
+
+							// Get model's max tokens limit if available
+							const modelMaxTokens =
+								selectedModelInfo?.maxTokens && selectedModelInfo.maxTokens > 0
+									? selectedModelInfo.maxTokens
+									: 8192
+
+							// Validate: must be a number, at least 1, and not exceed model's limit
+							const validMaxTokens = isNaN(maxTokens) ? 8192 : Math.min(Math.max(maxTokens, 1), modelMaxTokens)
+
+							// Update the displayed value to match the validated value
+							setMaxTokensInput(validMaxTokens.toString())
+
+							// Update the configuration
+							setApiConfiguration({
+								...apiConfiguration,
+								maxTokens: validMaxTokens,
+							})
+
+							// Only update thinking budget if it exists and new max tokens is LOWER than current budget
+							if (apiConfiguration?.thinkingMode && validMaxTokens < apiConfiguration.thinkingMode.budgetTokens) {
+								setApiConfiguration({
+									...apiConfiguration,
+									maxTokens: validMaxTokens,
+									thinkingMode: {
+										enabled: true,
+										budgetTokens: validMaxTokens,
+									},
+								})
+							}
+						}}
+						placeholder="Max tokens (default: 8192)">
+						<span style={{ fontWeight: 500 }}>Max output tokens</span>
+					</VSCodeTextField>
+					<p
+						style={{
+							fontSize: "12px",
+							marginTop: "5px",
+							color: "var(--vscode-descriptionForeground)",
+						}}>
+						Controls the maximum number of tokens the model will generate in its response. Default is 8192.{" "}
+						{selectedModelInfo?.maxTokens
+							? `This model supports up to ${selectedModelInfo.maxTokens.toLocaleString()} tokens.`
+							: ""}
+					</p>
+				</div>
+			)}
+
 			{selectedProvider !== "openrouter" &&
 				selectedProvider !== "openai" &&
 				selectedProvider !== "ollama" &&
@@ -1324,60 +1422,6 @@ const ApiOptions = ({ showModelOptions, apiErrorMessage, modelIdErrorMessage, is
 											</p>
 										</div>
 									)}
-
-									<div style={{ marginTop: "10px" }}>
-										<VSCodeTextField
-											value={maxTokensInput}
-											style={{ width: "100%" }}
-											onInput={(e: any) => {
-												// Just update the input field value without validation
-												setMaxTokensInput(e.target.value)
-											}}
-											onBlur={(e: any) => {
-												// Apply validation when the field loses focus
-												const maxTokens = parseInt(e.target.value, 10)
-												const validMaxTokens = isNaN(maxTokens)
-													? 8192
-													: Math.min(Math.max(maxTokens, 1), 64000)
-
-												// Update the displayed value to match the validated value
-												setMaxTokensInput(validMaxTokens.toString())
-
-												// Update the configuration
-												setApiConfiguration({
-													...apiConfiguration,
-													maxTokens: validMaxTokens,
-												})
-
-												// Only update thinking budget if it exists and new max tokens is LOWER than current budget
-												if (
-													apiConfiguration?.thinkingMode &&
-													validMaxTokens < apiConfiguration.thinkingMode.budgetTokens
-												) {
-													setApiConfiguration({
-														...apiConfiguration,
-														maxTokens: validMaxTokens,
-														thinkingMode: {
-															enabled: true,
-															budgetTokens: validMaxTokens,
-														},
-													})
-												}
-											}}
-											placeholder="Max tokens (default: 8192)">
-											<span style={{ fontWeight: 500 }}>Max output tokens</span>
-										</VSCodeTextField>
-										<p
-											style={{
-												fontSize: "12px",
-												marginTop: "5px",
-												color: "var(--vscode-descriptionForeground)",
-											}}>
-											Controls the maximum number of tokens Claude will generate in its response. Default is
-											8192. Can be set up to 64000 for longer outputs. Note that output tokens count against
-											the 200K context window total.
-										</p>
-									</div>
 								</div>
 							)}
 
@@ -1427,60 +1471,6 @@ const ApiOptions = ({ showModelOptions, apiErrorMessage, modelIdErrorMessage, is
 												before sending a response. Higher values allow for more complex reasoning but may
 												increase latency and costs. The budget cannot exceed the max output tokens (
 												{apiConfiguration?.maxTokens || 8192}).
-											</p>
-										</div>
-
-										<div style={{ marginTop: "10px" }}>
-											<VSCodeTextField
-												value={maxTokensInput}
-												style={{ width: "100%" }}
-												onInput={(e: any) => {
-													// Just update the input field value without validation
-													setMaxTokensInput(e.target.value)
-												}}
-												onBlur={(e: any) => {
-													// Apply validation when the field loses focus
-													const maxTokens = parseInt(e.target.value, 10)
-													const validMaxTokens = isNaN(maxTokens)
-														? 8192
-														: Math.min(Math.max(maxTokens, 1), 64000)
-
-													// Update the displayed value to match the validated value
-													setMaxTokensInput(validMaxTokens.toString())
-
-													// Update the configuration
-													setApiConfiguration({
-														...apiConfiguration,
-														maxTokens: validMaxTokens,
-													})
-
-													// Only update thinking budget if it exists and new max tokens is LOWER than current budget
-													if (
-														apiConfiguration?.thinkingMode &&
-														validMaxTokens < apiConfiguration.thinkingMode.budgetTokens
-													) {
-														setApiConfiguration({
-															...apiConfiguration,
-															maxTokens: validMaxTokens,
-															thinkingMode: {
-																enabled: true,
-																budgetTokens: validMaxTokens,
-															},
-														})
-													}
-												}}
-												placeholder="Max tokens (default: 8192)">
-												<span style={{ fontWeight: 500 }}>Max output tokens</span>
-											</VSCodeTextField>
-											<p
-												style={{
-													fontSize: "12px",
-													marginTop: "5px",
-													color: "var(--vscode-descriptionForeground)",
-												}}>
-												Controls the maximum number of tokens Claude will generate in its response.
-												Default is 8192. Can be set up to 64000 for longer outputs. Note that output
-												tokens count against the 200K context window total.
 											</p>
 										</div>
 									</div>
@@ -1552,58 +1542,6 @@ const ApiOptions = ({ showModelOptions, apiErrorMessage, modelIdErrorMessage, is
 									Token budget controls the maximum number of tokens Claude will use for thinking before sending
 									a response. Higher values allow for more complex reasoning but may increase latency and costs.
 									The budget cannot exceed the max output tokens ({apiConfiguration?.maxTokens || 8192}).
-								</p>
-							</div>
-
-							<div style={{ marginTop: "10px" }}>
-								<VSCodeTextField
-									value={maxTokensInput}
-									style={{ width: "100%" }}
-									onInput={(e: any) => {
-										// Just update the input field value without validation
-										setMaxTokensInput(e.target.value)
-									}}
-									onBlur={(e: any) => {
-										// Apply validation when the field loses focus
-										const maxTokens = parseInt(e.target.value, 10)
-										const validMaxTokens = isNaN(maxTokens) ? 8192 : Math.min(Math.max(maxTokens, 1), 64000)
-
-										// Update the displayed value to match the validated value
-										setMaxTokensInput(validMaxTokens.toString())
-
-										// Update the configuration
-										setApiConfiguration({
-											...apiConfiguration,
-											maxTokens: validMaxTokens,
-										})
-
-										// Only update thinking budget if it exists and new max tokens is LOWER than current budget
-										if (
-											apiConfiguration?.thinkingMode &&
-											validMaxTokens < apiConfiguration.thinkingMode.budgetTokens
-										) {
-											setApiConfiguration({
-												...apiConfiguration,
-												maxTokens: validMaxTokens,
-												thinkingMode: {
-													enabled: true,
-													budgetTokens: validMaxTokens,
-												},
-											})
-										}
-									}}
-									placeholder="Max tokens (default: 8192)">
-									<span style={{ fontWeight: 500 }}>Max output tokens</span>
-								</VSCodeTextField>
-								<p
-									style={{
-										fontSize: "12px",
-										marginTop: "5px",
-										color: "var(--vscode-descriptionForeground)",
-									}}>
-									Controls the maximum number of tokens Claude will generate in its response. Default is 8192.
-									Can be set up to 64000 for longer outputs. Note that output tokens count against the 200K
-									context window total.
 								</p>
 							</div>
 						</div>

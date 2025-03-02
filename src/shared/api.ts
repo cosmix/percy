@@ -94,7 +94,7 @@ export type AnthropicModelId = keyof typeof anthropicModels
 export const anthropicDefaultModelId: AnthropicModelId = "claude-3-7-sonnet-20250219"
 export const anthropicModels = {
 	"claude-3-7-sonnet-20250219": {
-		maxTokens: 8192, // Default to 8192, can be adjusted up to 64000 by the user
+		maxTokens: 64000, // Default to 8192, can be adjusted up to 64000 by the user
 		contextWindow: 200_000,
 		supportsImages: true,
 		supportsComputerUse: true,
