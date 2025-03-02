@@ -1248,7 +1248,11 @@ const ApiOptions = ({ showModelOptions, apiErrorMessage, modelIdErrorMessage, is
 								<span style={{ fontWeight: 500 }}>Model</span>
 							</label>
 							{selectedProvider === "anthropic" && createDropdown(anthropicModels)}
-							{selectedProvider === "anthropic" && selectedModelId === "claude-3-7-sonnet-20250219" && (
+							{/* For Anthropic, Bedrock, and Vertex providers with Claude 3.7 Sonnet */}
+							{((selectedProvider === "anthropic" && selectedModelId === "claude-3-7-sonnet-20250219") ||
+								(selectedProvider === "bedrock" &&
+									selectedModelId === "anthropic.claude-3-7-sonnet-20250219-v1:0") ||
+								(selectedProvider === "vertex" && selectedModelId === "claude-3-7-sonnet@20250219")) && (
 								<div style={{ marginTop: "10px" }}>
 									<VSCodeCheckbox
 										checked={thinkingModeEnabled}
@@ -1266,7 +1270,7 @@ const ApiOptions = ({ showModelOptions, apiErrorMessage, modelIdErrorMessage, is
 															enabled: true,
 															// Ensure thinking budget is less than max tokens
 															budgetTokens: Math.min(
-																apiConfiguration?.thinkingMode?.budgetTokens || 8192,
+																apiConfiguration?.thinkingMode?.budgetTokens || 4096,
 																currentMaxTokens,
 															),
 														}
@@ -1291,7 +1295,7 @@ const ApiOptions = ({ showModelOptions, apiErrorMessage, modelIdErrorMessage, is
 													const currentMaxTokens = apiConfiguration?.maxTokens || 8192
 
 													// Ensure budget is not greater than max_tokens
-													const validBudget = isNaN(budget) ? 8192 : Math.min(budget, currentMaxTokens)
+													const validBudget = isNaN(budget) ? 4096 : Math.min(budget, currentMaxTokens)
 
 													// Update the displayed value to match the validated value
 													setThinkingBudgetInput(validBudget.toString())
@@ -1304,7 +1308,7 @@ const ApiOptions = ({ showModelOptions, apiErrorMessage, modelIdErrorMessage, is
 														},
 													})
 												}}
-												placeholder="Token budget (default: 8192)">
+												placeholder="Token budget (default: 4096)">
 												<span style={{ fontWeight: 500 }}>Thinking token budget</span>
 											</VSCodeTextField>
 											<p
@@ -1376,6 +1380,111 @@ const ApiOptions = ({ showModelOptions, apiErrorMessage, modelIdErrorMessage, is
 									</div>
 								</div>
 							)}
+
+							{/* For OpenRouter with Claude 3.7 Sonnet:thinking */}
+							{selectedProvider === ("openrouter" as ApiProvider) &&
+								(selectedModelId === "anthropic/claude-3.7-sonnet:thinking" ||
+									selectedModelId === "anthropic/claude-3-7-sonnet:thinking") && (
+									<div style={{ marginTop: "10px" }}>
+										<div style={{ marginTop: "5px" }}>
+											<VSCodeTextField
+												value={thinkingBudgetInput}
+												style={{ width: "100%" }}
+												onInput={(e: any) => {
+													// Just update the input field value without validation
+													setThinkingBudgetInput(e.target.value)
+												}}
+												onBlur={(e: any) => {
+													// Apply validation when the field loses focus
+													const budget = parseInt(e.target.value, 10)
+													// Get the current max tokens value or default to 8192
+													const currentMaxTokens = apiConfiguration?.maxTokens || 8192
+
+													// Ensure budget is not greater than max_tokens
+													const validBudget = isNaN(budget) ? 4096 : Math.min(budget, currentMaxTokens)
+
+													// Update the displayed value to match the validated value
+													setThinkingBudgetInput(validBudget.toString())
+
+													setApiConfiguration({
+														...apiConfiguration,
+														thinkingMode: {
+															enabled: true,
+															budgetTokens: validBudget,
+														},
+													})
+												}}
+												placeholder="Token budget (default: 4096)">
+												<span style={{ fontWeight: 500 }}>Thinking token budget</span>
+											</VSCodeTextField>
+											<p
+												style={{
+													fontSize: "12px",
+													marginTop: "5px",
+													color: "var(--vscode-descriptionForeground)",
+												}}>
+												Token budget controls the maximum number of tokens Claude will use for thinking
+												before sending a response. Higher values allow for more complex reasoning but may
+												increase latency and costs. The budget cannot exceed the max output tokens (
+												{apiConfiguration?.maxTokens || 8192}).
+											</p>
+										</div>
+
+										<div style={{ marginTop: "10px" }}>
+											<VSCodeTextField
+												value={maxTokensInput}
+												style={{ width: "100%" }}
+												onInput={(e: any) => {
+													// Just update the input field value without validation
+													setMaxTokensInput(e.target.value)
+												}}
+												onBlur={(e: any) => {
+													// Apply validation when the field loses focus
+													const maxTokens = parseInt(e.target.value, 10)
+													const validMaxTokens = isNaN(maxTokens)
+														? 8192
+														: Math.min(Math.max(maxTokens, 1), 64000)
+
+													// Update the displayed value to match the validated value
+													setMaxTokensInput(validMaxTokens.toString())
+
+													// Update the configuration
+													setApiConfiguration({
+														...apiConfiguration,
+														maxTokens: validMaxTokens,
+													})
+
+													// Only update thinking budget if it exists and new max tokens is LOWER than current budget
+													if (
+														apiConfiguration?.thinkingMode &&
+														validMaxTokens < apiConfiguration.thinkingMode.budgetTokens
+													) {
+														setApiConfiguration({
+															...apiConfiguration,
+															maxTokens: validMaxTokens,
+															thinkingMode: {
+																enabled: true,
+																budgetTokens: validMaxTokens,
+															},
+														})
+													}
+												}}
+												placeholder="Max tokens (default: 8192)">
+												<span style={{ fontWeight: 500 }}>Max output tokens</span>
+											</VSCodeTextField>
+											<p
+												style={{
+													fontSize: "12px",
+													marginTop: "5px",
+													color: "var(--vscode-descriptionForeground)",
+												}}>
+												Controls the maximum number of tokens Claude will generate in its response.
+												Default is 8192. Can be set up to 64000 for longer outputs. Note that output
+												tokens count against the 200K context window total.
+											</p>
+										</div>
+									</div>
+								)}
 							{selectedProvider === "bedrock" && createDropdown(bedrockModels)}
 							{selectedProvider === "vertex" && createDropdown(vertexModels)}
 							{selectedProvider === "gemini" && createDropdown(geminiModels)}
@@ -1395,7 +1504,112 @@ const ApiOptions = ({ showModelOptions, apiErrorMessage, modelIdErrorMessage, is
 					</>
 				)}
 
-			{selectedProvider === "openrouter" && showModelOptions && <OpenRouterModelPicker isPopup={isPopup} />}
+			{selectedProvider === "openrouter" && showModelOptions && (
+				<>
+					<OpenRouterModelPicker isPopup={isPopup} />
+
+					{/* For OpenRouter with Claude 3.7 Sonnet:thinking */}
+					{(selectedModelId === "anthropic/claude-3.7-sonnet:thinking" ||
+						selectedModelId === "anthropic/claude-3-7-sonnet:thinking") && (
+						<div style={{ marginTop: "10px" }}>
+							<div style={{ marginTop: "5px" }}>
+								<VSCodeTextField
+									value={thinkingBudgetInput}
+									style={{ width: "100%" }}
+									onInput={(e: any) => {
+										// Just update the input field value without validation
+										setThinkingBudgetInput(e.target.value)
+									}}
+									onBlur={(e: any) => {
+										// Apply validation when the field loses focus
+										const budget = parseInt(e.target.value, 10)
+										// Get the current max tokens value or default to 8192
+										const currentMaxTokens = apiConfiguration?.maxTokens || 8192
+
+										// Ensure budget is not greater than max_tokens
+										const validBudget = isNaN(budget) ? 4096 : Math.min(budget, currentMaxTokens)
+
+										// Update the displayed value to match the validated value
+										setThinkingBudgetInput(validBudget.toString())
+
+										setApiConfiguration({
+											...apiConfiguration,
+											thinkingMode: {
+												enabled: true,
+												budgetTokens: validBudget,
+											},
+										})
+									}}
+									placeholder="Token budget (default: 4096)">
+									<span style={{ fontWeight: 500 }}>Thinking token budget</span>
+								</VSCodeTextField>
+								<p
+									style={{
+										fontSize: "12px",
+										marginTop: "5px",
+										color: "var(--vscode-descriptionForeground)",
+									}}>
+									Token budget controls the maximum number of tokens Claude will use for thinking before sending
+									a response. Higher values allow for more complex reasoning but may increase latency and costs.
+									The budget cannot exceed the max output tokens ({apiConfiguration?.maxTokens || 8192}).
+								</p>
+							</div>
+
+							<div style={{ marginTop: "10px" }}>
+								<VSCodeTextField
+									value={maxTokensInput}
+									style={{ width: "100%" }}
+									onInput={(e: any) => {
+										// Just update the input field value without validation
+										setMaxTokensInput(e.target.value)
+									}}
+									onBlur={(e: any) => {
+										// Apply validation when the field loses focus
+										const maxTokens = parseInt(e.target.value, 10)
+										const validMaxTokens = isNaN(maxTokens) ? 8192 : Math.min(Math.max(maxTokens, 1), 64000)
+
+										// Update the displayed value to match the validated value
+										setMaxTokensInput(validMaxTokens.toString())
+
+										// Update the configuration
+										setApiConfiguration({
+											...apiConfiguration,
+											maxTokens: validMaxTokens,
+										})
+
+										// Only update thinking budget if it exists and new max tokens is LOWER than current budget
+										if (
+											apiConfiguration?.thinkingMode &&
+											validMaxTokens < apiConfiguration.thinkingMode.budgetTokens
+										) {
+											setApiConfiguration({
+												...apiConfiguration,
+												maxTokens: validMaxTokens,
+												thinkingMode: {
+													enabled: true,
+													budgetTokens: validMaxTokens,
+												},
+											})
+										}
+									}}
+									placeholder="Max tokens (default: 8192)">
+									<span style={{ fontWeight: 500 }}>Max output tokens</span>
+								</VSCodeTextField>
+								<p
+									style={{
+										fontSize: "12px",
+										marginTop: "5px",
+										color: "var(--vscode-descriptionForeground)",
+									}}>
+									Controls the maximum number of tokens Claude will generate in its response. Default is 8192.
+									Can be set up to 64000 for longer outputs. Note that output tokens count against the 200K
+									context window total.
+								</p>
+							</div>
+						</div>
+					)}
+				</>
+			)}
 
 			{modelIdErrorMessage && (
 				<p
