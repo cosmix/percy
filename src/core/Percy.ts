@@ -1824,12 +1824,18 @@ export class Percy {
 									await this.diffViewProvider.open(relPath)
 								}
 								// editor is open, stream content in
-								const fileChangeResult = await constructNewFileContent(
-									diff || "",
-									this.diffViewProvider.originalContent || "",
-									false,
-								)
-								await this.diffViewProvider.update(fileChangeResult, false)
+								if (diff) {
+									// For replace_in_file, use the diff processor
+									const fileChangeResult = await constructNewFileContent(
+										diff,
+										this.diffViewProvider.originalContent || "",
+										false,
+									)
+									await this.diffViewProvider.update(fileChangeResult, false)
+								} else {
+									// For write_to_file, bypass the diff processor and pass content directly
+									await this.diffViewProvider.update(newContent, false)
+								}
 								break
 							} else {
 								if (!relPath) {
@@ -1866,12 +1872,18 @@ export class Percy {
 									await this.diffViewProvider.open(relPath)
 								}
 
-								const fileChangeResult = await constructNewFileContent(
-									diff || "",
-									this.diffViewProvider.originalContent || "",
-									true,
-								)
-								await this.diffViewProvider.update(fileChangeResult, true)
+								if (diff) {
+									// For replace_in_file, use the diff processor
+									const fileChangeResult = await constructNewFileContent(
+										diff,
+										this.diffViewProvider.originalContent || "",
+										true,
+									)
+									await this.diffViewProvider.update(fileChangeResult, true)
+								} else {
+									// For write_to_file, bypass the diff processor and pass content directly
+									await this.diffViewProvider.update(newContent, true)
+								}
 								await delay(300) // wait for diff view to update
 								this.diffViewProvider.scrollToFirstDiff()
 								// showOmissionWarning(this.diffViewProvider.originalContent || "", newContent)

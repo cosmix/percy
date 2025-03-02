@@ -97,6 +97,16 @@ const pulseAnimation = `
 		50% { box-shadow: 0 0 12px rgba(255, 180, 0, 0.8); }
 		100% { box-shadow: 0 0 8px rgba(255, 180, 0, 0.5); }
 	}
+	
+	@keyframes slideRight {
+		from { transform: translateX(0%); }
+		to { transform: translateX(100%); }
+	}
+	
+	@keyframes slideLeft {
+		from { transform: translateX(100%); }
+		to { transform: translateX(0%); }
+	}
 `
 
 const Slider = styled.div<{ isAct: boolean; animate?: boolean }>`
@@ -105,11 +115,17 @@ const Slider = styled.div<{ isAct: boolean; animate?: boolean }>`
 	height: 100%;
 	width: 50%;
 	background-color: ${PLAN_MODE_COLOR};
-	transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
 	transform: translateX(${(props) => (props.isAct ? "100%" : "0%")});
-	box-shadow: 0 0 8px ${(props) => (props.isAct ? "rgba(255, 180, 0, 0.5)" : "rgba(255, 180, 0, 0.5)")};
+	box-shadow: 0 0 8px rgba(255, 180, 0, 0.5);
 	border-radius: 10px;
-	animation: ${(props) => (props.animate ? "pulseBorderPlan 0.5s ease-in-out" : "none")};
+	animation: ${(props) => {
+		if (!props.animate) return "none"
+		return props.isAct
+			? "slideRight 0.3s cubic-bezier(0.25, 1, 0.5, 1), pulseBorderPlan 0.5s ease-in-out"
+			: "slideLeft 0.3s cubic-bezier(0.25, 1, 0.5, 1), pulseBorderPlan 0.5s ease-in-out"
+	}};
+	transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+	will-change: transform;
 `
 
 const ButtonGroup = styled.div`
@@ -708,12 +724,14 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 				changeModeDelay = 250 // necessary to let the api config update (we send message and wait for it to be saved) FIXME: this is a hack and we ideally should check for api config changes, then wait for it to be saved, before switching modes
 			}
 
-			// Trigger animation
+			// First trigger animation
 			setAnimateModeSwitch(true)
-			setTimeout(() => setAnimateModeSwitch(false), 500)
 
+			// Then update the mode
+			const newMode = chatSettings.mode === "plan" ? "act" : "plan"
+
+			// Send the message after a small delay to allow animation to start
 			setTimeout(() => {
-				const newMode = chatSettings.mode === "plan" ? "act" : "plan"
 				vscode.postMessage({
 					type: "togglePlanActMode",
 					chatSettings: {
@@ -724,10 +742,16 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 						images: selectedImages.length > 0 ? selectedImages : undefined,
 					},
 				})
-				// Focus the textarea after mode toggle with slight delay
+
+				// Focus the textarea after mode toggle
 				setTimeout(() => {
 					textAreaRef.current?.focus()
 				}, 100)
+
+				// Reset animation flag after animation completes
+				setTimeout(() => {
+					setAnimateModeSwitch(false)
+				}, 500)
 			}, changeModeDelay)
 		}, [chatSettings.mode, showModelSelector, submitApiConfig, inputValue, selectedImages])
 

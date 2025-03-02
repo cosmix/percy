@@ -81,18 +81,45 @@ export class DiffViewProvider {
 			throw new Error("Required values not set")
 		}
 
-		// Handle both string and FileChangeResult inputs for backward compatibility
-		let accumulatedContent: string
-		let changedRegions: { startLine: number; endLine: number }[] = []
-
+		// Convert string (from write_to_file) to FileChangeResult format
+		let processedResult: FileChangeResult
 		if (typeof fileChangeResult === "string") {
-			accumulatedContent = fileChangeResult
+			// For write_to_file, treat it as a full file replacement
+			processedResult = {
+				content: fileChangeResult,
+				changedRegions: [], // No specific change regions, treat entire file as changed
+			}
+			this.newContent = fileChangeResult
+
+			// For the first update in write_to_file, we need to clear the document first
+			if (this.streamedLines.length === 0) {
+				const diffEditor = this.activeDiffEditor
+				const document = diffEditor?.document
+
+				if (!diffEditor || !document) {
+					throw new Error("User closed text editor, unable to edit file...")
+				}
+
+				// Place cursor at the beginning
+				const beginningOfDocument = new vscode.Position(0, 0)
+				diffEditor.selection = new vscode.Selection(beginningOfDocument, beginningOfDocument)
+
+				// Clear the entire document
+				const edit = new vscode.WorkspaceEdit()
+				const fullRange = new vscode.Range(0, 0, document.lineCount, 0)
+				edit.delete(document.uri, fullRange)
+				await vscode.workspace.applyEdit(edit)
+			}
 		} else {
-			accumulatedContent = fileChangeResult.content
-			changedRegions = fileChangeResult.changedRegions
+			// For replace_in_file, use the provided FileChangeResult directly
+			processedResult = fileChangeResult
+			this.newContent = processedResult.content
 		}
 
-		this.newContent = accumulatedContent
+		// Common processing code for both write_to_file and replace_in_file
+		const accumulatedContent = processedResult.content
+		const changedRegions = processedResult.changedRegions
+
 		const accumulatedLines = accumulatedContent.split("\n")
 		if (!isFinal) {
 			accumulatedLines.pop() // remove the last partial line only if it's not the final update
@@ -157,7 +184,7 @@ export class DiffViewProvider {
 			if (hasEmptyLastLine) {
 				const accumulatedLines = accumulatedContent.split("\n")
 				if (accumulatedLines[accumulatedLines.length - 1] !== "") {
-					accumulatedContent += "\n"
+					this.newContent += "\n"
 				}
 			}
 
