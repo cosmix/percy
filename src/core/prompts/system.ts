@@ -4,6 +4,8 @@ import osName from "os-name"
 import { McpHub } from "../../services/mcp/McpHub"
 import { BrowserSettings } from "../../shared/BrowserSettings"
 
+/* eslint-disable no-useless-escape */
+
 export const SYSTEM_PROMPT = async (
 	cwd: string,
 	supportsComputerUse: boolean,

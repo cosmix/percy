@@ -864,16 +864,7 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 
 			// Fallback to current apiConfiguration
 			return !!modelInfo.supportsThinking && !!apiConfiguration.thinkingMode?.enabled
-		}, [
-			apiConfiguration,
-			openRouterModels,
-			chatSettings,
-			anthropicModels,
-			bedrockModels,
-			vertexModels,
-			geminiModels,
-			openAiNativeModels,
-		])
+		}, [apiConfiguration, openRouterModels, chatSettings])
 
 		// Get model display name
 		const modelDisplayName = useMemo(() => {

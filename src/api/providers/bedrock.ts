@@ -16,11 +16,11 @@ export class AwsBedrockHandler implements ApiHandler {
 
 	async *createMessage(systemPrompt: string, messages: Anthropic.Messages.MessageParam[]): ApiStream {
 		// cross region inference requires prefixing the model id with the region
-		let modelId = await this.getModelId()
+		const modelId = await this.getModelId()
 
 		// create anthropic client, using sessions created or renewed after this handler's
 		// initialization, and allowing for session renewal if necessary as well
-		let client = await this.getClient()
+		const client = await this.getClient()
 
 		const model = this.getModel()
 
@@ -40,7 +40,7 @@ export class AwsBedrockHandler implements ApiHandler {
 		const thinkingBudget = getThinkingBudget(model.info, this.options.thinkingMode, maxTokens)
 
 		// Add thinking parameter if budget is greater than 0
-		if (thinkingBudget > 0) {
+		if (isThinkingEnabled(model.info) && thinkingBudget > 0) {
 			// Set thinking parameter
 			requestOptions.thinking = {
 				type: "enabled",

@@ -116,23 +116,15 @@ export class OpenRouterHandler implements ApiHandler {
 		let temperature: number | undefined = 0
 		let reasoning: { max_tokens: number } | undefined = undefined
 
-		// Handle thinking mode for models that support it
-		if (model.info.supportsThinking) {
-			// Get thinking budget from options
-			let budget_tokens = 0
+		let budget_tokens = this.options.thinkingMode?.budgetTokens || 0
 
-			// Check if thinking is enabled via thinkingMode option
-			if (this.options.thinkingMode?.enabled) {
-				budget_tokens = this.options.thinkingMode.budgetTokens
-			}
-
-			// Enable reasoning if budget_tokens is set
-			if (budget_tokens > 0) {
-				// Extended thinking requires temperature=1 (undefined here means use default of 1)
-				temperature = undefined
-				reasoning = { max_tokens: Math.min(budget_tokens, maxTokens || 64000) }
-			}
+		// Enable reasoning if budget_tokens is set
+		if (isThinkingEnabled(model.info) && budget_tokens > 0) {
+			// Extended thinking requires temperature=1 (undefined here means use default of 1)
+			temperature = undefined
+			reasoning = { max_tokens: Math.min(budget_tokens, maxTokens || 64000) }
 		}
+
 		let topP: number | undefined = undefined
 		if (this.getModel().id.startsWith("deepseek/deepseek-r1") || this.getModel().id === "perplexity/sonar-reasoning") {
 			// Recommended values from DeepSeek

@@ -802,25 +802,8 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 											color: "var(--vscode-errorForeground)",
 										}}>
 										{apiRequestFailedMessage || apiReqStreamingFailedMessage}
-										{apiRequestFailedMessage?.toLowerCase().includes("powershell") && (
-											<>
-												<br />
-												<br />
-												It seems like you're having Windows PowerShell issues, please see this{" "}
-												<a
-													href="https://github.com/cosmix/percy/wiki/TroubleShooting-%E2%80%90-%22PowerShell-is-not-recognized-as-an-internal-or-external-command%22"
-													style={{
-														color: "inherit",
-														textDecoration: "underline",
-													}}>
-													troubleshooting guide
-												</a>
-												.
-											</>
-										)}
-									</p>
 
-									{/* {apiProvider === "" && (
+										{/* {apiProvider === "" && (
 											<div
 												style={{
 													display: "flex",
@@ -852,6 +835,23 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 												</span>
 											</div>
 										)} */}
+										{apiRequestFailedMessage?.toLowerCase().includes("powershell") && (
+											<>
+												<br />
+												<br />
+												It seems like you're having Windows PowerShell issues, please see this{" "}
+												<a
+													href="https://github.com/cosmix/percy/wiki/TroubleShooting-%E2%80%90-%22PowerShell-is-not-recognized-as-an-internal-or-external-command%22"
+													style={{
+														color: "inherit",
+														textDecoration: "underline",
+													}}>
+													troubleshooting guide
+												</a>
+												.
+											</>
+										)}
+									</p>
 								</>
 							)}
 
@@ -869,6 +869,8 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 					)
 				case "api_req_finished":
 					return null // we should never see this message type
+				case "mcp_server_response":
+					return <McpResponseDisplay responseText={message.text || ""} />
 				case "text":
 					return (
 						<div>
@@ -1102,7 +1104,7 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 									zsh, bash, fish, or PowerShell (<code>CMD/CTRL + Shift + P</code> → "Terminal: Select Default
 									Profile").{" "}
 									<a
-										href="https://github.com/cline/cline/wiki/Troubleshooting-%E2%80%90-Shell-Integration-Unavailable"
+										href="https://github.com/cosmix/percy/wiki/Troubleshooting-%E2%80%90-Shell-Integration-Unavailable"
 										style={{
 											color: "inherit",
 											textDecoration: "underline",
@@ -1110,28 +1112,6 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 										Still having trouble?
 									</a>
 								</div>
-							</div>
-						</>
-					)
-				case "mcp_server_response":
-					return (
-						<>
-							<div style={{ paddingTop: 0 }}>
-								<div
-									style={{
-										marginBottom: "4px",
-										opacity: 0.8,
-										fontSize: "12px",
-										textTransform: "uppercase",
-									}}>
-									Response
-								</div>
-								<CodeAccordian
-									code={message.text}
-									language="json"
-									isExpanded={true}
-									onToggleExpand={onToggleExpand}
-								/>
 							</div>
 						</>
 					)

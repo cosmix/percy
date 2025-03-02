@@ -35,7 +35,7 @@ export class VertexHandler implements ApiHandler {
 
 		// Get thinking budget using utility function
 		const budget_tokens = getThinkingBudget(model.info, this.options.thinkingMode, maxTokens)
-		const reasoningOn = budget_tokens > 0
+		const reasoningOn = isThinkingEnabled(model.info) && budget_tokens > 0
 
 		let stream
 		switch (modelId) {
