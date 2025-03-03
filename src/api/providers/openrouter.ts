@@ -8,7 +8,7 @@ import { ApiHandlerOptions, ModelInfo, openRouterDefaultModelId, openRouterDefau
 import { convertToOpenAiMessages } from "../transform/openai-format"
 import { ApiStream } from "../transform/stream"
 import { convertToR1Format } from "../transform/r1-format"
-import { getThinkingBudget, getThinkingTemperature, isThinkingEnabled } from "../utils/thinking-mode"
+import { isThinkingEnabled } from "../utils/thinking-mode"
 
 export class OpenRouterHandler implements ApiHandler {
 	private options: ApiHandlerOptions
@@ -21,7 +21,7 @@ export class OpenRouterHandler implements ApiHandler {
 			apiKey: this.options.openRouterApiKey,
 			defaultHeaders: {
 				"HTTP-Referer": "https://www.cosmix.org", // Optional, for including your app on openrouter.ai rankings.
-				"X-Title": "Percy", // Optional. Shows in rankings on openrouter.ai.
+				"X-Title": "Archimedes", // Optional. Shows in rankings on openrouter.ai.
 			},
 		})
 	}
@@ -92,13 +92,29 @@ export class OpenRouterHandler implements ApiHandler {
 
 		// Handle maxTokens for different models
 		let maxTokens: number | undefined
+		let temperature: number | undefined = 0
+		let reasoning: { max_tokens: number } | undefined = undefined
+
 
 		// For Claude 3.7 models, use custom maxTokens if provided (up to 64000)
 		if (model.id.includes("claude-3.7-sonnet")) {
 			maxTokens = Math.min(this.options.maxTokens || 8192, 64000)
+			let budget_tokens = this.options.thinkingMode?.budgetTokens || 0
+
+			// Enable reasoning if budget_tokens is set
+			if (isThinkingEnabled(model.info, this.options.thinkingMode) && budget_tokens > 0) {
+				// Extended thinking requires temperature=1 (undefined here means use default of 1)
+				temperature = undefined
+				reasoning = { max_tokens: Math.min(budget_tokens, maxTokens || model.info.maxTokens || 8192) }
+			}
 		} else {
 			// For other Claude models, use default 8192
 			switch (model.id) {
+				case "anthropic/claude-3.7-sonnet":
+				case "anthropic/claude-3.7-sonnet:beta":
+				case "anthropic/claude-3.7-sonnet:thinking":
+				case "anthropic/claude-3-7-sonnet":
+				case "anthropic/claude-3-7-sonnet:beta":
 				case "anthropic/claude-3.5-sonnet":
 				case "anthropic/claude-3.5-sonnet:beta":
 				case "anthropic/claude-3.5-sonnet-20240620":
@@ -112,18 +128,7 @@ export class OpenRouterHandler implements ApiHandler {
 			}
 		}
 
-		// Initialize temperature and reasoning parameters
-		let temperature: number | undefined = 0
-		let reasoning: { max_tokens: number } | undefined = undefined
 
-		let budget_tokens = this.options.thinkingMode?.budgetTokens || 0
-
-		// Enable reasoning if budget_tokens is set
-		if (isThinkingEnabled(model.info, this.options.thinkingMode) && budget_tokens > 0) {
-			// Extended thinking requires temperature=1 (undefined here means use default of 1)
-			temperature = undefined
-			reasoning = { max_tokens: Math.min(budget_tokens, maxTokens || 64000) }
-		}
 
 		let topP: number | undefined = undefined
 		if (this.getModel().id.startsWith("deepseek/deepseek-r1") || this.getModel().id === "perplexity/sonar-reasoning") {
@@ -255,22 +260,8 @@ export class OpenRouterHandler implements ApiHandler {
 	}
 
 	getModel(): { id: string; info: ModelInfo } {
-		let modelId = this.options.openRouterModelId
+		const modelId = this.options.openRouterModelId
 		const modelInfo = this.options.openRouterModelInfo
-
-		// If thinking mode is enabled and the model is Claude 3.7 Sonnet,
-		// use the :thinking variant of the model
-		if (
-			modelId &&
-			modelInfo?.supportsThinking &&
-			this.options.thinkingMode?.enabled &&
-			this.options.thinkingMode.budgetTokens > 0 &&
-			(modelId.includes("claude-3.7-sonnet") || modelId.includes("claude-3-7-sonnet")) &&
-			!modelId.includes(":thinking")
-		) {
-			// Append :thinking to the model ID
-			modelId = `${modelId}:thinking`
-		}
 
 		if (modelId && modelInfo) {
 			return { id: modelId, info: modelInfo }

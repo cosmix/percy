@@ -1,13 +1,13 @@
-import { PercyIgnoreController } from "./PercyIgnoreController"
+import { ArchimedesIgnoreController } from "./ArchimedesIgnoreController"
 import fs from "fs/promises"
 import path from "path"
 import os from "os"
 import { after, beforeEach, describe, it } from "mocha"
 import "should"
 
-describe("PercyIgnoreController", () => {
+describe("ArchimedesIgnoreController", () => {
 	let tempDir: string
-	let controller: PercyIgnoreController
+	let controller: ArchimedesIgnoreController
 
 	beforeEach(async () => {
 		// Create a temp directory for testing
@@ -22,7 +22,7 @@ describe("PercyIgnoreController", () => {
 			),
 		)
 
-		controller = new PercyIgnoreController(tempDir)
+		controller = new ArchimedesIgnoreController(tempDir)
 		await controller.initialize()
 	})
 
@@ -85,7 +85,7 @@ describe("PercyIgnoreController", () => {
 				["*.secret", "private/", "*.tmp", "data-*.json", "temp/*"].join("\n"),
 			)
 
-			controller = new PercyIgnoreController(tempDir)
+			controller = new ArchimedesIgnoreController(tempDir)
 			await controller.initialize()
 
 			const results = [
@@ -116,7 +116,7 @@ describe("PercyIgnoreController", () => {
 		// 		].join("\n"),
 		// 	)
 
-		// 	controller = new PercyIgnoreController(tempDir)
+		// 	controller = new ArchimedesIgnoreController(tempDir)
 
 		// 	const results = [
 		// 		// Basic negation
@@ -155,7 +155,7 @@ describe("PercyIgnoreController", () => {
 				["# Comment line", "*.secret", "private/", "temp.*"].join("\n"),
 			)
 
-			controller = new PercyIgnoreController(tempDir)
+			controller = new ArchimedesIgnoreController(tempDir)
 			await controller.initialize()
 
 			const result = controller.validateAccess("test.secret")
@@ -223,7 +223,7 @@ describe("PercyIgnoreController", () => {
 			await fs.mkdir(emptyDir)
 
 			try {
-				const controller = new PercyIgnoreController(emptyDir)
+				const controller = new ArchimedesIgnoreController(emptyDir)
 				await controller.initialize()
 				const result = controller.validateAccess("file.txt")
 				result.should.be.true()
@@ -235,7 +235,7 @@ describe("PercyIgnoreController", () => {
 		it("should handle empty .clineignore", async () => {
 			await fs.writeFile(path.join(tempDir, ".clineignore"), "")
 
-			controller = new PercyIgnoreController(tempDir)
+			controller = new ArchimedesIgnoreController(tempDir)
 			await controller.initialize()
 
 			const result = controller.validateAccess("regular-file.txt")

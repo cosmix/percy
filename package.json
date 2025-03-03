@@ -1,6 +1,6 @@
 {
-	"name": "percy",
-	"displayName": "Percy",
+	"name": "archimedes",
+	"displayName": "Archimedes",
 	"description": "An Agentic Software Engineering AI Assistant",
 	"version": "1.0.5",
 	"icon": "assets/icons/icon.png",
@@ -18,7 +18,7 @@
 	"publisher": "cosmix",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/cosmix/percy"
+		"url": "https://github.com/cosmix/archimedes"
 	},
 	"homepage": "https://www.cosmix.org",
 	"categories": [
@@ -30,7 +30,7 @@
 		"Testing"
 	],
 	"keywords": [
-		"percy",
+		"archimedes",
 		"claude",
 		"dev",
 		"mcp",
@@ -49,86 +49,86 @@
 		"viewsContainers": {
 			"activitybar": [
 				{
-					"id": "percy-ActivityBar",
-					"title": "Percy",
+					"id": "archimedes-ActivityBar",
+					"title": "Archimedes",
 					"icon": "assets/icons/icon.svg"
 				}
 			]
 		},
 		"views": {
-			"percy-ActivityBar": [
+			"archimedes-ActivityBar": [
 				{
 					"type": "webview",
-					"id": "percy.SidebarProvider",
+					"id": "archimedes.SidebarProvider",
 					"name": ""
 				}
 			]
 		},
 		"commands": [
 			{
-				"command": "percy.plusButtonClicked",
+				"command": "archimedes.plusButtonClicked",
 				"title": "New Task",
 				"icon": "$(add)"
 			},
 			{
-				"command": "percy.mcpButtonClicked",
+				"command": "archimedes.mcpButtonClicked",
 				"title": "MCP Servers",
 				"icon": "$(extensions)"
 			},
 			{
-				"command": "percy.historyButtonClicked",
+				"command": "archimedes.historyButtonClicked",
 				"title": "History",
 				"icon": "$(history)"
 			},
 			{
-				"command": "percy.popoutButtonClicked",
+				"command": "archimedes.popoutButtonClicked",
 				"title": "Open in Editor",
 				"icon": "$(link-external)"
 			},
 			{
-				"command": "percy.settingsButtonClicked",
+				"command": "archimedes.settingsButtonClicked",
 				"title": "Settings",
 				"icon": "$(settings-gear)"
 			},
 			{
-				"command": "percy.openInNewTab",
+				"command": "archimedes.openInNewTab",
 				"title": "Open In New Tab",
-				"category": "Percy"
+				"category": "Archimedes"
 			}
 		],
 		"menus": {
 			"view/title": [
 				{
-					"command": "percy.plusButtonClicked",
+					"command": "archimedes.plusButtonClicked",
 					"group": "navigation@1",
-					"when": "view == percy.SidebarProvider"
+					"when": "view == archimedes.SidebarProvider"
 				},
 				{
-					"command": "percy.mcpButtonClicked",
+					"command": "archimedes.mcpButtonClicked",
 					"group": "navigation@2",
-					"when": "view == percy.SidebarProvider"
+					"when": "view == archimedes.SidebarProvider"
 				},
 				{
-					"command": "percy.historyButtonClicked",
+					"command": "archimedes.historyButtonClicked",
 					"group": "navigation@3",
-					"when": "view == percy.SidebarProvider"
+					"when": "view == archimedes.SidebarProvider"
 				},
 				{
-					"command": "percy.popoutButtonClicked",
+					"command": "archimedes.popoutButtonClicked",
 					"group": "navigation@4",
-					"when": "view == percy.SidebarProvider"
+					"when": "view == archimedes.SidebarProvider"
 				},
 				{
-					"command": "percy.settingsButtonClicked",
+					"command": "archimedes.settingsButtonClicked",
 					"group": "navigation@5",
-					"when": "view == percy.SidebarProvider"
+					"when": "view == archimedes.SidebarProvider"
 				}
 			]
 		},
 		"configuration": {
-			"title": "Percy",
+			"title": "Archimedes",
 			"properties": {
-				"percy.vsCodeLmModelSelector": {
+				"archimedes.vsCodeLmModelSelector": {
 					"type": "object",
 					"properties": {
 						"vendor": {
@@ -142,7 +142,7 @@
 					},
 					"description": "Settings for VSCode Language Model API"
 				},
-				"percy.mcp.mode": {
+				"archimedes.mcp.mode": {
 					"type": "string",
 					"enum": [
 						"full",
@@ -157,17 +157,17 @@
 					"default": "full",
 					"description": "Controls MCP inclusion in prompts, reduces token usage if you only need access to certain functionality."
 				},
-				"percy.enableCheckpoints": {
+				"archimedes.enableCheckpoints": {
 					"type": "boolean",
 					"default": true,
 					"description": "Enables extension to save checkpoints of workspace throughout the task."
 				},
-				"percy.disableBrowserTool": {
+				"archimedes.disableBrowserTool": {
 					"type": "boolean",
 					"default": false,
 					"description": "Disables extension from spawning browser session."
 				},
-				"percy.modelSettings.o3Mini.reasoningEffort": {
+				"archimedes.modelSettings.o3Mini.reasoningEffort": {
 					"type": "string",
 					"enum": [
 						"low",
@@ -177,12 +177,12 @@
 					"default": "medium",
 					"description": "Controls the reasoning effort when using the o3-mini model. Higher values may result in more thorough but slower responses."
 				},
-				"percy.chromeExecutablePath": {
+				"archimedes.chromeExecutablePath": {
 					"type": "string",
 					"default": null,
 					"description": "Path to Chrome executable for browser use functionality. If not set, the extension will attempt to find or download it automatically."
 				},
-				"percy.mcpMarketplace.enabled": {
+				"archimedes.mcpMarketplace.enabled": {
 					"type": "boolean",
 					"default": false,
 					"description": "Controls whether the MCP Marketplace is enabled."

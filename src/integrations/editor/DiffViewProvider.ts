@@ -9,7 +9,7 @@ import * as diff from "diff"
 import { diagnosticsToProblemsString, getNewDiagnostics } from "../diagnostics"
 import { FileChangeResult } from "../../core/assistant-message/diff"
 
-export const DIFF_VIEW_URI_SCHEME = "percy-diff"
+export const DIFF_VIEW_URI_SCHEME = "archimedes-diff"
 
 export class DiffViewProvider {
 	editType?: "create" | "modify"

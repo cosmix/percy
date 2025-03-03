@@ -6,10 +6,10 @@ import styled, { keyframes } from "styled-components"
 import {
 	COMPLETION_RESULT_CHANGES_FLAG,
 	ExtensionMessage,
-	PercyApiReqInfo,
-	PercyAskUseMcpServer,
-	PercyMessage,
-	PercySayTool,
+	ArchimedesApiReqInfo,
+	ArchimedesAskUseMcpServer,
+	ArchimedesMessage,
+	ArchimedesSayTool,
 } from "../../../../src/shared/ExtensionMessage"
 import { COMMAND_OUTPUT_STRING, COMMAND_REQ_APP_STRING } from "../../../../src/shared/combineCommandSequences"
 import { useExtensionState } from "../../context/ExtensionStateContext"
@@ -53,10 +53,10 @@ const ChatRowContainer = styled.div`
 `
 
 interface ChatRowProps {
-	message: PercyMessage
+	message: ArchimedesMessage
 	isExpanded: boolean
 	onToggleExpand: () => void
-	lastModifiedMessage?: PercyMessage
+	lastModifiedMessage?: ArchimedesMessage
 	isLast: boolean
 	onHeightChange: (isTaller: boolean) => void
 }
@@ -196,7 +196,7 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 
 	const [cost, apiReqCancelReason, apiReqStreamingFailedMessage] = useMemo(() => {
 		if (message.text != null && message.say === "api_req_started") {
-			const info: PercyApiReqInfo = JSON.parse(message.text)
+			const info: ArchimedesApiReqInfo = JSON.parse(message.text)
 			return [info.cost, info.cancelReason, info.streamingFailedMessage]
 		}
 		return [undefined, undefined, undefined]
@@ -252,7 +252,7 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 							color: errorColor,
 							marginBottom: "-1.5px",
 						}}></span>,
-					<span style={{ color: errorColor, fontWeight: "bold" }}>Percy is having trouble...</span>,
+					<span style={{ color: errorColor, fontWeight: "bold" }}>Archimedes is having trouble...</span>,
 				]
 			case "auto_approval_max_req_reached":
 				return [
@@ -276,10 +276,10 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 								marginBottom: "-1.5px",
 							}}></span>
 					),
-					<span style={{ color: normalColor, fontWeight: "bold" }}>Percy wants to execute this command:</span>,
+					<span style={{ color: normalColor, fontWeight: "bold" }}>Archimedes wants to execute this command:</span>,
 				]
 			case "use_mcp_server":
-				const mcpServerUse = JSON.parse(message.text || "{}") as PercyAskUseMcpServer
+				const mcpServerUse = JSON.parse(message.text || "{}") as ArchimedesAskUseMcpServer
 				return [
 					isMcpServerResponding ? (
 						<ProgressIndicator />
@@ -292,7 +292,7 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 							}}></span>
 					),
 					<span style={{ color: normalColor, fontWeight: "bold", wordBreak: "break-word" }}>
-						Percy wants to {mcpServerUse.type === "use_mcp_tool" ? "use a tool" : "access a resource"} on the{" "}
+						Archimedes wants to {mcpServerUse.type === "use_mcp_tool" ? "use a tool" : "access a resource"} on the{" "}
 						<code style={{ wordBreak: "break-all" }}>
 							{getMcpServerDisplayName(mcpServerUse.serverName, mcpMarketplaceCatalog)}
 						</code>{" "}
@@ -376,7 +376,7 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 							color: normalColor,
 							marginBottom: "-1.5px",
 						}}></span>,
-					<span style={{ color: normalColor, fontWeight: "bold" }}>Percy has a question:</span>,
+					<span style={{ color: normalColor, fontWeight: "bold" }}>Archimedes has a question:</span>,
 				]
 			default:
 				return [null, null]
@@ -408,7 +408,7 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 
 	const tool = useMemo(() => {
 		if (message.ask === "tool" || message.say === "tool") {
-			return JSON.parse(message.text || "{}") as PercySayTool
+			return JSON.parse(message.text || "{}") as ArchimedesSayTool
 		}
 		return null
 	}, [message.ask, message.say, message.text])
@@ -429,7 +429,7 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 					<>
 						<div style={headerStyle}>
 							{toolIcon("edit")}
-							<span style={{ fontWeight: "bold" }}>Percy wants to edit this file:</span>
+							<span style={{ fontWeight: "bold" }}>Archimedes wants to edit this file:</span>
 						</div>
 						<CodeAccordian
 							// isLoading={message.partial}
@@ -445,7 +445,7 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 					<>
 						<div style={headerStyle}>
 							{toolIcon("new-file")}
-							<span style={{ fontWeight: "bold" }}>Percy wants to create a new file:</span>
+							<span style={{ fontWeight: "bold" }}>Archimedes wants to create a new file:</span>
 						</div>
 						<CodeAccordian
 							isLoading={message.partial}
@@ -462,8 +462,8 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 						<div style={headerStyle}>
 							{toolIcon("file-code")}
 							<span style={{ fontWeight: "bold" }}>
-								{/* {message.type === "ask" ? "" : "Percy read this file:"} */}
-								Percy wants to read this file:
+								{/* {message.type === "ask" ? "" : "Archimedes read this file:"} */}
+								Archimedes wants to read this file:
 							</span>
 						</div>
 						<div
@@ -521,8 +521,8 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 							{toolIcon("folder-opened")}
 							<span style={{ fontWeight: "bold" }}>
 								{message.type === "ask"
-									? "Percy wants to view the top level files in this directory:"
-									: "Percy viewed the top level files in this directory:"}
+									? "Archimedes wants to view the top level files in this directory:"
+									: "Archimedes viewed the top level files in this directory:"}
 							</span>
 						</div>
 						<CodeAccordian
@@ -541,8 +541,8 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 							{toolIcon("folder-opened")}
 							<span style={{ fontWeight: "bold" }}>
 								{message.type === "ask"
-									? "Percy wants to recursively view all files in this directory:"
-									: "Percy recursively viewed all files in this directory:"}
+									? "Archimedes wants to recursively view all files in this directory:"
+									: "Archimedes recursively viewed all files in this directory:"}
 							</span>
 						</div>
 						<CodeAccordian
@@ -561,8 +561,8 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 							{toolIcon("file-code")}
 							<span style={{ fontWeight: "bold" }}>
 								{message.type === "ask"
-									? "Percy wants to view source code definition names used in this directory:"
-									: "Percy viewed source code definition names used in this directory:"}
+									? "Archimedes wants to view source code definition names used in this directory:"
+									: "Archimedes viewed source code definition names used in this directory:"}
 							</span>
 						</div>
 						<CodeAccordian
@@ -579,7 +579,7 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 						<div style={headerStyle}>
 							{toolIcon("search")}
 							<span style={{ fontWeight: "bold" }}>
-								Percy wants to search this directory for <code>{tool.regex}</code>:
+								Archimedes wants to search this directory for <code>{tool.regex}</code>:
 							</span>
 						</div>
 						<CodeAccordian
@@ -684,7 +684,7 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 	}
 
 	if (message.ask === "use_mcp_server" || message.say === "use_mcp_server") {
-		const useMcpServer = JSON.parse(message.text || "{}") as PercyAskUseMcpServer
+		const useMcpServer = JSON.parse(message.text || "{}") as ArchimedesAskUseMcpServer
 		const server = mcpServers.find((server) => server.name === useMcpServer.serverName)
 		return (
 			<>
@@ -842,7 +842,7 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 												<br />
 												It seems like you're having Windows PowerShell issues, please see this{" "}
 												<a
-													href="https://github.com/cosmix/percy/wiki/TroubleShooting-%E2%80%90-%22PowerShell-is-not-recognized-as-an-internal-or-external-command%22"
+													href="https://github.com/cosmix/archimedes/wiki/TroubleShooting-%E2%80%90-%22PowerShell-is-not-recognized-as-an-internal-or-external-command%22"
 													style={{
 														color: "inherit",
 														textDecoration: "underline",
@@ -904,7 +904,7 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 						</div>
 					)
 				case "user_feedback_diff":
-					const tool = JSON.parse(message.text || "{}") as PercySayTool
+					const tool = JSON.parse(message.text || "{}") as ArchimedesSayTool
 					return (
 						<div
 							style={{
@@ -977,7 +977,7 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 							</div>
 						</>
 					)
-				case "percyignore_error":
+				case "archimedesignore_error":
 					return (
 						<>
 							<div
@@ -1011,7 +1011,7 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 									</span>
 								</div>
 								<div>
-									Percy tried to access <code>{message.text}</code> which is blocked by the{" "}
+									Archimedes tried to access <code>{message.text}</code> which is blocked by the{" "}
 									<code>.clineignore</code>
 									file.
 								</div>
@@ -1100,12 +1100,12 @@ export const ChatRowContent = ({ message, isExpanded, onToggleExpand, lastModifi
 									</span>
 								</div>
 								<div>
-									Percy won't be able to view the command's output. Please update VSCode (
+									Archimedes won't be able to view the command's output. Please update VSCode (
 									<code>CMD/CTRL + Shift + P</code> → "Update") and make sure you're using a supported shell:
 									zsh, bash, fish, or PowerShell (<code>CMD/CTRL + Shift + P</code> → "Terminal: Select Default
 									Profile").{" "}
 									<a
-										href="https://github.com/cosmix/percy/wiki/Troubleshooting-%E2%80%90-Shell-Integration-Unavailable"
+										href="https://github.com/cosmix/archimedes/wiki/Troubleshooting-%E2%80%90-Shell-Integration-Unavailable"
 										style={{
 											color: "inherit",
 											textDecoration: "underline",

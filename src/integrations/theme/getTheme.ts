@@ -137,5 +137,5 @@ export function mergeJson(
 }
 
 function getExtensionUri(): vscode.Uri {
-	return vscode.extensions.getExtension("org.cosmix.percy")!.extensionUri
+	return vscode.extensions.getExtension("org.cosmix.archimedes")!.extensionUri
 }

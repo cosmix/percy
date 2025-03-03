@@ -1,14 +1,14 @@
-import { PercyMessage } from "./ExtensionMessage"
+import { ArchimedesMessage } from "./ExtensionMessage"
 
 /**
- * Combines API request start and finish messages in an array of PercyMessages.
+ * Combines API request start and finish messages in an array of ArchimedesMessages.
  *
  * This function looks for pairs of 'api_req_started' and 'api_req_finished' messages.
  * When it finds a pair, it combines them into a single 'api_req_combined' message.
  * The JSON data in the text fields of both messages are merged.
  *
- * @param messages - An array of PercyMessage objects to process.
- * @returns A new array of PercyMessage objects with API requests combined.
+ * @param messages - An array of ArchimedesMessage objects to process.
+ * @returns A new array of ArchimedesMessage objects with API requests combined.
  *
  * @example
  * const messages = [
@@ -18,8 +18,8 @@ import { PercyMessage } from "./ExtensionMessage"
  * const result = combineApiRequests(messages);
  * // Result: [{ type: "say", say: "api_req_started", text: '{"request":"GET /api/data","cost":0.005}', ts: 1000 }]
  */
-export function combineApiRequests(messages: PercyMessage[]): PercyMessage[] {
-	const combinedApiRequests: PercyMessage[] = []
+export function combineApiRequests(messages: ArchimedesMessage[]): ArchimedesMessage[] {
+	const combinedApiRequests: ArchimedesMessage[] = []
 
 	for (let i = 0; i < messages.length; i++) {
 		if (messages[i].type === "say" && messages[i].say === "api_req_started") {

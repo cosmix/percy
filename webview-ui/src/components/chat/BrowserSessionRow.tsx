@@ -4,7 +4,7 @@ import React, { memo, useEffect, useMemo, useRef, useState } from "react"
 import { useSize } from "react-use"
 import styled from "styled-components"
 import { BROWSER_VIEWPORT_PRESETS } from "../../../../src/shared/BrowserSettings"
-import { BrowserAction, BrowserActionResult, PercyMessage, PercySayBrowserAction } from "../../../../src/shared/ExtensionMessage"
+import { BrowserAction, BrowserActionResult, ArchimedesMessage, ArchimedesSayBrowserAction } from "../../../../src/shared/ExtensionMessage"
 import { useExtensionState } from "../../context/ExtensionStateContext"
 import { vscode } from "../../utils/vscode"
 import { BrowserSettingsMenu } from "../browser/BrowserSettingsMenu"
@@ -13,10 +13,10 @@ import CodeBlock, { CODE_BLOCK_BG_COLOR } from "../common/CodeBlock"
 import { ChatRowContent, ProgressIndicator } from "./ChatRow"
 
 interface BrowserSessionRowProps {
-	messages: PercyMessage[]
+	messages: ArchimedesMessage[]
 	isExpanded: (messageTs: number) => boolean
 	onToggleExpand: (messageTs: number) => void
-	lastModifiedMessage?: PercyMessage
+	lastModifiedMessage?: ArchimedesMessage
 	isLast: boolean
 	onHeightChange: (isTaller: boolean) => void
 }
@@ -56,15 +56,15 @@ const BrowserSessionRow = memo((props: BrowserSessionRowProps) => {
 				screenshot?: string
 				mousePosition?: string
 				consoleLogs?: string
-				messages: PercyMessage[] // messages up to and including the result
+				messages: ArchimedesMessage[] // messages up to and including the result
 			}
 			nextAction?: {
-				messages: PercyMessage[] // messages leading to next result
+				messages: ArchimedesMessage[] // messages leading to next result
 			}
 		}[] = []
 
-		let currentStateMessages: PercyMessage[] = []
-		let nextActionMessages: PercyMessage[] = []
+		let currentStateMessages: ArchimedesMessage[] = []
+		let nextActionMessages: ArchimedesMessage[] = []
 
 		messages.forEach((message) => {
 			if (message.ask === "browser_action_launch" || message.say === "browser_action_launch") {
@@ -218,7 +218,7 @@ const BrowserSessionRow = memo((props: BrowserSessionRowProps) => {
 		for (let i = actions.length - 1; i >= 0; i--) {
 			const message = actions[i]
 			if (message.say === "browser_action") {
-				const browserAction = JSON.parse(message.text || "{}") as PercySayBrowserAction
+				const browserAction = JSON.parse(message.text || "{}") as ArchimedesSayBrowserAction
 				if (browserAction.action === "click" && browserAction.coordinate) {
 					return browserAction.coordinate
 				}
@@ -263,7 +263,7 @@ const BrowserSessionRow = memo((props: BrowserSessionRowProps) => {
 						}}></span>
 				)}
 				<span style={{ fontWeight: "bold" }}>
-					<>{isAutoApproved ? "Percy is using the browser:" : "Percy wants to use the browser:"}</>
+					<>{isAutoApproved ? "Archimedes is using the browser:" : "Archimedes wants to use the browser:"}</>
 				</span>
 			</div>
 			<div
@@ -441,7 +441,7 @@ const BrowserSessionRow = memo((props: BrowserSessionRowProps) => {
 }, deepEqual)
 
 interface BrowserSessionRowContentProps extends Omit<BrowserSessionRowProps, "messages"> {
-	message: PercyMessage
+	message: ArchimedesMessage
 	setMaxActionHeight: (height: number) => void
 }
 
@@ -502,7 +502,7 @@ const BrowserSessionRowContent = ({
 					)
 
 				case "browser_action":
-					const browserAction = JSON.parse(message.text || "{}") as PercySayBrowserAction
+					const browserAction = JSON.parse(message.text || "{}") as ArchimedesSayBrowserAction
 					return (
 						<BrowserActionBox
 							action={browserAction.action}

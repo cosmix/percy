@@ -22,7 +22,7 @@ export function getThinkingBudget(modelInfo: ModelInfo, options?: ThinkingModeOp
 		return 0
 	}
 
-	return Math.min(options?.budgetTokens || 0, maxTokens || modelInfo.maxTokens || Infinity)
+	return Math.min(options?.budgetTokens || 0, maxTokens || modelInfo.maxTokens || 8192)
 }
 
 /**

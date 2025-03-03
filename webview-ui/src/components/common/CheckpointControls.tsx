@@ -5,7 +5,7 @@ import styled from "styled-components"
 import { ExtensionMessage } from "../../../../src/shared/ExtensionMessage"
 import { vscode } from "../../utils/vscode"
 import { CODE_BLOCK_BG_COLOR } from "./CodeBlock"
-import { PercyCheckpointRestore } from "../../../../src/shared/WebviewMessage"
+import { ArchimedesCheckpointRestore } from "../../../../src/shared/WebviewMessage"
 
 interface CheckpointOverlayProps {
 	messageTs?: number
@@ -49,7 +49,7 @@ export const CheckpointOverlay = ({ messageTs }: CheckpointOverlayProps) => {
 		vscode.postMessage({
 			type: "checkpointRestore",
 			number: messageTs,
-			text: "task" satisfies PercyCheckpointRestore,
+			text: "task" satisfies ArchimedesCheckpointRestore,
 		})
 	}
 
@@ -58,7 +58,7 @@ export const CheckpointOverlay = ({ messageTs }: CheckpointOverlayProps) => {
 		vscode.postMessage({
 			type: "checkpointRestore",
 			number: messageTs,
-			text: "workspace" satisfies PercyCheckpointRestore,
+			text: "workspace" satisfies ArchimedesCheckpointRestore,
 		})
 	}
 
@@ -67,7 +67,7 @@ export const CheckpointOverlay = ({ messageTs }: CheckpointOverlayProps) => {
 		vscode.postMessage({
 			type: "checkpointRestore",
 			number: messageTs,
-			text: "taskAndWorkspace" satisfies PercyCheckpointRestore,
+			text: "taskAndWorkspace" satisfies ArchimedesCheckpointRestore,
 		})
 	}
 

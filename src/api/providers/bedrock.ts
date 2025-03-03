@@ -27,7 +27,7 @@ export class AwsBedrockHandler implements ApiHandler {
 		// Determine max_tokens value based on model capabilities
 		let maxTokens = model.info.maxTokens || 8192
 		if (model.info.supportsThinking) {
-			maxTokens = Math.min(this.options.maxTokens || 8192, 64000)
+			maxTokens = Math.min(this.options.maxTokens || 8192, model.info.maxTokens || 8192)
 		}
 
 		// Default temperature is 0
@@ -53,10 +53,46 @@ export class AwsBedrockHandler implements ApiHandler {
 
 		const stream = await client.messages.create({
 			model: modelId,
-			max_tokens: maxTokens,
-			temperature: temperature,
-			system: systemPrompt,
-			messages,
+			max_tokens: model.info.maxTokens || 8192,
+			temperature: reasoningOn ? undefined : 0,
+			system: [
+				{
+					text: systemPrompt,
+					type: "text",
+					...(this.options.awsBedrockUsePromptCache === true && {
+						cache_control: { type: "ephemeral" },
+					}),
+				},
+			],
+			messages: messages.map((message, index) => {
+				if (index === lastUserMsgIndex || index === secondLastMsgUserIndex) {
+					return {
+						...message,
+						content:
+							typeof message.content === "string"
+								? [
+										{
+											type: "text",
+											text: message.content,
+											...(this.options.awsBedrockUsePromptCache === true && {
+												cache_control: { type: "ephemeral" },
+											}),
+										},
+									]
+								: message.content.map((content, contentIndex) =>
+										contentIndex === message.content.length - 1
+											? {
+													...content,
+													...(this.options.awsBedrockUsePromptCache === true && {
+														cache_control: { type: "ephemeral" },
+													}),
+												}
+											: content,
+									),
+					}
+				}
+				return message
+			}),
 			stream: true,
 			...requestOptions,
 		})
@@ -68,6 +104,8 @@ export class AwsBedrockHandler implements ApiHandler {
 						type: "usage",
 						inputTokens: usage.input_tokens || 0,
 						outputTokens: usage.output_tokens || 0,
+						cacheWriteTokens: usage.cache_creation_input_tokens || undefined,
+						cacheReadTokens: usage.cache_read_input_tokens || undefined,
 					}
 					break
 				case "message_delta":
@@ -138,12 +176,6 @@ export class AwsBedrockHandler implements ApiHandler {
 							}
 							break
 						case "signature_delta":
-							if (chunk.delta.signature) {
-								yield {
-									type: "signature_delta",
-									signature: chunk.delta.signature,
-								}
-							}
 							break
 					}
 					break
@@ -192,7 +224,7 @@ export class AwsBedrockHandler implements ApiHandler {
 		})
 	}
 
-	private async getModelId(): Promise<string> {
+	async getModelId(): Promise<string> {
 		if (this.options.awsUseCrossRegionInference) {
 			let regionPrefix = (this.options.awsRegion || "").slice(0, 3)
 			switch (regionPrefix) {
@@ -200,11 +232,11 @@ export class AwsBedrockHandler implements ApiHandler {
 					return `us.${this.getModel().id}`
 				case "eu-":
 					return `eu.${this.getModel().id}`
-					break
+				case "ap-":
+					return `apac.${this.getModel().id}`
 				default:
 					// cross region inference is not supported in this region, falling back to default model
 					return this.getModel().id
-					break
 			}
 		}
 		return this.getModel().id
@@ -221,7 +253,7 @@ export class AwsBedrockHandler implements ApiHandler {
 		}
 	}
 
-	private static async setEnv(key: string, value: string | undefined) {
+	private static setEnv(key: string, value: string | undefined) {
 		if (key !== "" && value !== undefined) {
 			process.env[key] = value
 		}

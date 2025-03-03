@@ -8,10 +8,10 @@ export const LOCK_TEXT_SYMBOL = "\u{1F512}"
 
 /**
  * Controls LLM access to files by enforcing ignore patterns.
- * Designed to be instantiated once in Percy.ts and passed to file manipulation services.
+ * Designed to be instantiated once in Archimedes.ts and passed to file manipulation services.
  * Uses the 'ignore' library to support standard .gitignore syntax in .clineignore files.
  */
-export class PercyIgnoreController {
+export class ArchimedesIgnoreController {
 	private cwd: string
 	private ignoreInstance: Ignore
 	private disposables: vscode.Disposable[] = []
@@ -30,7 +30,7 @@ export class PercyIgnoreController {
 	 * Must be called after construction and before using the controller
 	 */
 	async initialize(): Promise<void> {
-		await this.loadPercyIgnore()
+		await this.loadArchimedesIgnore()
 	}
 
 	/**
@@ -43,13 +43,13 @@ export class PercyIgnoreController {
 		// Watch for changes and updates
 		this.disposables.push(
 			fileWatcher.onDidChange(() => {
-				this.loadPercyIgnore()
+				this.loadArchimedesIgnore()
 			}),
 			fileWatcher.onDidCreate(() => {
-				this.loadPercyIgnore()
+				this.loadArchimedesIgnore()
 			}),
 			fileWatcher.onDidDelete(() => {
-				this.loadPercyIgnore()
+				this.loadArchimedesIgnore()
 			}),
 		)
 
@@ -60,7 +60,7 @@ export class PercyIgnoreController {
 	/**
 	 * Load custom patterns from .clineignore if it exists
 	 */
-	private async loadPercyIgnore(): Promise<void> {
+	private async loadArchimedesIgnore(): Promise<void> {
 		try {
 			// Reset ignore instance to prevent duplicate patterns
 			this.ignoreInstance = ignore()

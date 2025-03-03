@@ -3,12 +3,12 @@ import * as path from "path"
 import { listFiles } from "../glob/list-files"
 import { LanguageParser, loadRequiredLanguageParsers } from "./languageParser"
 import { fileExistsAtPath } from "../../utils/fs"
-import { PercyIgnoreController } from "../../core/ignore/PercyIgnoreController"
+import { ArchimedesIgnoreController } from "../../core/ignore/ArchimedesIgnoreController"
 
 // TODO: implement caching behavior to avoid having to keep analyzing project for new tasks.
 export async function parseSourceCodeForDefinitionsTopLevel(
 	dirPath: string,
-	percyIgnoreController?: PercyIgnoreController,
+	archimedesIgnoreController?: ArchimedesIgnoreController,
 ): Promise<string> {
 	// check if the path exists
 	const dirExists = await fileExistsAtPath(path.resolve(dirPath))
@@ -30,10 +30,10 @@ export async function parseSourceCodeForDefinitionsTopLevel(
 	// const filesWithoutDefinitions: string[] = []
 
 	// Filter filepaths for access if controller is provided
-	const allowedFilesToParse = percyIgnoreController ? percyIgnoreController.filterPaths(filesToParse) : filesToParse
+	const allowedFilesToParse = archimedesIgnoreController ? archimedesIgnoreController.filterPaths(filesToParse) : filesToParse
 
 	for (const filePath of allowedFilesToParse) {
-		const definitions = await parseFile(filePath, languageParsers, percyIgnoreController)
+		const definitions = await parseFile(filePath, languageParsers, archimedesIgnoreController)
 		if (definitions) {
 			result += `${path.relative(dirPath, filePath).toPosix()}\n${definitions}\n`
 		}
@@ -109,9 +109,9 @@ This approach allows us to focus on the most relevant parts of the code (defined
 async function parseFile(
 	filePath: string,
 	languageParsers: LanguageParser,
-	percyIgnoreController?: PercyIgnoreController,
+	archimedesIgnoreController?: ArchimedesIgnoreController,
 ): Promise<string | null> {
-	if (percyIgnoreController && !percyIgnoreController.validateAccess(filePath)) {
+	if (archimedesIgnoreController && !archimedesIgnoreController.validateAccess(filePath)) {
 		return null
 	}
 	const fileContent = await fs.readFile(filePath, "utf8")

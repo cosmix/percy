@@ -1,15 +1,15 @@
-# Percy Extension Architecture
+# Archimedes Extension Architecture
 
-This directory contains architectural documentation for the Percy VSCode extension. Percy was originally a fork of Cline, as such its architecture is very similar to Cline's, but it may deviate over time.
+This directory contains architectural documentation for the Archimedes VSCode extension. Archimedes was originally a fork of Cline, as such its architecture is very similar to Cline's, but it may deviate over time.
 
 ## Extension Architecture Diagram
 
-The [extension-architecture.mmd](./extension-architecture.mmd) file contains a Mermaid diagram showing the high-level architecture of the Percy extension. The diagram illustrates:
+The [extension-architecture.mmd](./extension-architecture.mmd) file contains a Mermaid diagram showing the high-level architecture of the Archimedes extension. The diagram illustrates:
 
 1. **Core Extension**
    - Extension entry point and main classes
    - State management through VSCode's global state and secrets storage
-   - Core business logic in the Percy class
+   - Core business logic in the Archimedes class
 
 2. **Webview UI**
    - React-based user interface
@@ -39,5 +39,5 @@ You can also view the diagram on GitHub, which has built-in Mermaid rendering su
 The diagram uses a high-contrast color scheme for better visibility:
 - Pink (#ff0066): Global state and secrets storage components
 - Blue (#0066ff): Extension state context
-- Green (#00cc66): Percy provider
+- Green (#00cc66): Archimedes provider
 - All components use white text for maximum readability

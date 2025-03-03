@@ -23,7 +23,7 @@ function asObjectSafe(value: any): object {
 
 		return {}
 	} catch (error) {
-		console.warn("Percy <Language Model API>: Failed to parse object:", error)
+		console.warn("Archimedes <Language Model API>: Failed to parse object:", error)
 		return {}
 	}
 }
@@ -161,7 +161,7 @@ export async function convertToAnthropicMessage(
 ): Promise<Anthropic.Messages.Message> {
 	const anthropicRole: string | null = convertToAnthropicRole(vsCodeLmMessage.role)
 	if (anthropicRole !== "assistant") {
-		throw new Error("Percy <Language Model API>: Only assistant messages are supported.")
+		throw new Error("Archimedes <Language Model API>: Only assistant messages are supported.")
 	}
 
 	return {

@@ -31,7 +31,7 @@ export const ExtensionStateContextProvider: React.FC<{
 }> = ({ children }) => {
 	const [state, setState] = useState<ExtensionState>({
 		version: "",
-		percyMessages: [],
+		archimedesMessages: [],
 		taskHistory: [],
 		shouldShowAnnouncement: false,
 		autoApprovalSettings: DEFAULT_AUTO_APPROVAL_SETTINGS,
@@ -95,11 +95,11 @@ export const ExtensionStateContextProvider: React.FC<{
 				const partialMessage = message.partialMessage!
 				setState((prevState) => {
 					// worth noting it will never be possible for a more up-to-date message to be sent here or in normal messages post since the presentAssistantContent function uses lock
-					const lastIndex = findLastIndex(prevState.percyMessages, (msg) => msg.ts === partialMessage.ts)
+					const lastIndex = findLastIndex(prevState.archimedesMessages, (msg) => msg.ts === partialMessage.ts)
 					if (lastIndex !== -1) {
-						const newPercyMessages = [...prevState.percyMessages]
-						newPercyMessages[lastIndex] = partialMessage
-						return { ...prevState, percyMessages: newPercyMessages }
+						const newArchimedesMessages = [...prevState.archimedesMessages]
+						newArchimedesMessages[lastIndex] = partialMessage
+						return { ...prevState, archimedesMessages: newArchimedesMessages }
 					}
 					return prevState
 				})

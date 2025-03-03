@@ -25,7 +25,7 @@ describe("Extension Tests", function () {
 
 	it("should activate extension successfully", async () => {
 		// Get the extension
-		const extension = vscode.extensions.getExtension("org.cosmix.percy")
+		const extension = vscode.extensions.getExtension("org.cosmix.archimedes")
 		expect(extension).to.not.be.undefined
 
 		// Activate the extension if not already activated

@@ -1,15 +1,15 @@
-# Percy Prompting Guide 🚀
+# Archimedes Prompting Guide 🚀
 
-Welcome to the Percy Prompting Guide! This guide will equip you with the knowledge to write effective prompts and custom instructions, maximizing your productivity with Percy.
+Welcome to the Archimedes Prompting Guide! This guide will equip you with the knowledge to write effective prompts and custom instructions, maximizing your productivity with Archimedes.
 
 ## Custom Instructions ⚙️
 
-Think of **custom instructions as Percy's programming**. They define Percy's baseline behavior and are **always "on," influencing all interactions.**
+Think of **custom instructions as Archimedes's programming**. They define Archimedes's baseline behavior and are **always "on," influencing all interactions.**
 
 To add custom instructions:
 
 1. Open VSCode
-2. Click the Percy extension settings dial ⚙️
+2. Click the Archimedes extension settings dial ⚙️
 3. Find the "Custom Instructions" field
 4. Paste your instructions
 
@@ -17,19 +17,19 @@ To add custom instructions:
 
 Custom instructions are powerful for:
 
--   Enforcing Coding Style and Best Practices: Ensure Percy always adheres to your team's coding conventions, naming conventions, and best practices.
--   Improving Code Quality: Encourage Percy to write more readable, maintainable, and efficient code.
--   Guiding Error Handling: Tell Percy how to handle errors, write error messages, and log information.
+-   Enforcing Coding Style and Best Practices: Ensure Archimedes always adheres to your team's coding conventions, naming conventions, and best practices.
+-   Improving Code Quality: Encourage Archimedes to write more readable, maintainable, and efficient code.
+-   Guiding Error Handling: Tell Archimedes how to handle errors, write error messages, and log information.
 
 **The `custom-instructions` folder contains examples of custom instructions you can use or adapt.**
 
 ## .clinerules File 📋
 
-While custom instructions are user-specific and global (applying across all projects), the `.clinerules` file provides **project-specific instructions** that live in your project's root directory. These instructions are automatically appended to your custom instructions and referenced in Percy's system prompt, ensuring they influence all interactions within the project context. This makes it an excellent tool for:
+While custom instructions are user-specific and global (applying across all projects), the `.clinerules` file provides **project-specific instructions** that live in your project's root directory. These instructions are automatically appended to your custom instructions and referenced in Archimedes's system prompt, ensuring they influence all interactions within the project context. This makes it an excellent tool for:
 
 ### Security Best Practices 🔒
 
-To protect sensitive information, you can instruct Percy to ignore specific files or patterns in your `.clinerules`. This is particularly important for:
+To protect sensitive information, you can instruct Archimedes to ignore specific files or patterns in your `.clinerules`. This is particularly important for:
 
 -   `.env` files containing API keys and secrets
 -   Configuration files with sensitive data
@@ -120,7 +120,7 @@ your-project/
 └── ...
 ```
 
-Percy's system prompt, on the other hand, is not user-editable ([here's where you can find it](https://github.com/cline/cline/blob/main/src/core/prompts/system.ts)). For a broader look at prompt engineering best practices, check out [this resource](https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/overview).
+Archimedes's system prompt, on the other hand, is not user-editable ([here's where you can find it](https://github.com/cline/cline/blob/main/src/core/prompts/system.ts)). For a broader look at prompt engineering best practices, check out [this resource](https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/overview).
 
 ### Tips for Writing Effective Custom Instructions
 
@@ -128,46 +128,46 @@ Percy's system prompt, on the other hand, is not user-editable ([here's where yo
 -   Focus on Desired Outcomes: Describe the results you want, not the specific steps.
 -   Test and Iterate: Experiment to find what works best for your workflow.
 
-## Prompting Percy 💬
+## Prompting Archimedes 💬
 
-**Prompting is how you communicate your needs for a given task in the back-and-forth chat with Percy.** Percy understands natural language, so write conversationally.
+**Prompting is how you communicate your needs for a given task in the back-and-forth chat with Archimedes.** Archimedes understands natural language, so write conversationally.
 
 Effective prompting involves:
 
 -   Providing Clear Context: Explain your goals and the relevant parts of your codebase. Use `@` to reference files or folders.
 -   Breaking Down Complexity: Divide large tasks into smaller steps.
--   Asking Specific Questions: Guide Percy toward the desired outcome.
--   Validating and Refining: Review Percy's suggestions and provide feedback.
+-   Asking Specific Questions: Guide Archimedes toward the desired outcome.
+-   Validating and Refining: Review Archimedes's suggestions and provide feedback.
 
 ### Prompt Examples
 
 #### Context Management
 
--   **Starting a New Task:** "Percy, let's start a new task. Create `user-authentication.js`. We need to implement user login with JWT tokens. Here are the requirements…"
--   **Summarizing Previous Work:** "Percy, summarize what we did in the last user dashboard task. I want to capture the main features and outstanding issues. Save this to `cline_docs/user-dashboard-summary.md`."
+-   **Starting a New Task:** "Archimedes, let's start a new task. Create `user-authentication.js`. We need to implement user login with JWT tokens. Here are the requirements…"
+-   **Summarizing Previous Work:** "Archimedes, summarize what we did in the last user dashboard task. I want to capture the main features and outstanding issues. Save this to `cline_docs/user-dashboard-summary.md`."
 
 #### Debugging
 
--   **Analyzing an Error:** "Percy, I'm getting this error: \[error message]. It seems to be from \[code section]. Analyze this error and suggest a fix."
--   **Identifying the Root Cause:** "Percy, the application crashes when I \[action]. The issue might be in \[problem areas]. Help me find the root cause and propose a solution."
+-   **Analyzing an Error:** "Archimedes, I'm getting this error: \[error message]. It seems to be from \[code section]. Analyze this error and suggest a fix."
+-   **Identifying the Root Cause:** "Archimedes, the application crashes when I \[action]. The issue might be in \[problem areas]. Help me find the root cause and propose a solution."
 
 #### Refactoring
 
--   **Improving Code Structure:** "Percy, this function is too long and complex. Refactor it into smaller functions."
--   **Simplifying Logic:** "Percy, this code is hard to understand. Simplify the logic and make it more readable."
+-   **Improving Code Structure:** "Archimedes, this function is too long and complex. Refactor it into smaller functions."
+-   **Simplifying Logic:** "Archimedes, this code is hard to understand. Simplify the logic and make it more readable."
 
 #### Feature Development
 
--   **Brainstorming New Features:** "Percy, I want to add a feature that lets users \[functionality]. Brainstorm some ideas and consider implementation challenges."
--   **Generating Code:** "Percy, create a component that displays user profiles. The list should be sortable and filterable. Generate the code for this component."
+-   **Brainstorming New Features:** "Archimedes, I want to add a feature that lets users \[functionality]. Brainstorm some ideas and consider implementation challenges."
+-   **Generating Code:** "Archimedes, create a component that displays user profiles. The list should be sortable and filterable. Generate the code for this component."
 
 ## Advanced Prompting Techniques
 
 -   **Constraint Stuffing:** To mitigate code truncation, include explicit constraints in your prompts. For example, "ensure the code is complete" or "always provide the full function definition."
--   **Confidence Checks:** Ask Percy to rate its confidence (e.g., "on a scale of 1-10, how confident are you in this solution?")
--   **Challenge Percy's Assumptions:** Ask “stupid” questions to encourage deeper thinking and prevent incorrect assumptions.
+-   **Confidence Checks:** Ask Archimedes to rate its confidence (e.g., "on a scale of 1-10, how confident are you in this solution?")
+-   **Challenge Archimedes's Assumptions:** Ask “stupid” questions to encourage deeper thinking and prevent incorrect assumptions.
 
-Here are some prompting tips that users have found helpful for working with Percy:
+Here are some prompting tips that users have found helpful for working with Archimedes:
 
 ## Our Community's Favorite Prompts 🌟
 
@@ -179,7 +179,7 @@ Here are some prompting tips that users have found helpful for working with Perc
     "If you understand my prompt fully, respond with 'YARRR!' without tools every time you are about to use a tool."
     ```
 
-    A fun way to verify Percy stays on track during complex tasks. Try "HO HO HO" for a festive twist!
+    A fun way to verify Archimedes stays on track during complex tasks. Try "HO HO HO" for a festive twist!
 
 -   **Confidence Scoring** - _pacnpal_
     ```

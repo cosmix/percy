@@ -35,7 +35,7 @@ const WelcomeView = () => {
 					padding: "0 20px",
 					overflow: "auto",
 				}}>
-				<h2>Hi, I'm Percy</h2>
+				<h2>Hi, I'm Archimedes</h2>
 				<p>
 					I can do all kinds of tasks thanks to breakthroughs in Claude 3.7 Sonnet's agentic coding capabilities and
 					access to tools that let me create & edit files, explore complex projects, use the browser, and execute

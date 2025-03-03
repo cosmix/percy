@@ -130,7 +130,7 @@ export const BrowserSettingsMenu: React.FC<BrowserSettingsMenuProps> = ({ disabl
 						<SettingsDescription>
 							{browserSettings.chromeType === "system" ? (
 								<>
-									Percy will use your personal browser. You must{" "}
+									Archimedes will use your personal browser. You must{" "}
 									<VSCodeLink
 										href="#"
 										style={{ fontSize: "inherit" }}
@@ -143,7 +143,7 @@ export const BrowserSettingsMenu: React.FC<BrowserSettingsMenuProps> = ({ disabl
 									to use this setting.
 								</>
 							) : (
-								"Percy will use a Chromium browser bundled with the extension."
+								"Archimedes will use a Chromium browser bundled with the extension."
 							)}
 						</SettingsDescription>
 					</SettingsGroup> */}

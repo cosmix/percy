@@ -1,9 +1,9 @@
 import * as vscode from "vscode"
-import { PercyProvider } from "../core/webview/PercyProvider"
-import { PercyAPI } from "./percy"
+import { ArchimedesProvider } from "../core/webview/ArchimedesProvider"
+import { ArchimedesAPI } from "./archimedes"
 
-export function createPercyAPI(outputChannel: vscode.OutputChannel, sidebarProvider: PercyProvider): PercyAPI {
-	const api: PercyAPI = {
+export function createArchimedesAPI(outputChannel: vscode.OutputChannel, sidebarProvider: ArchimedesProvider): ArchimedesAPI {
+	const api: ArchimedesAPI = {
 		setCustomInstructions: async (value: string) => {
 			await sidebarProvider.updateCustomInstructions(value)
 			outputChannel.appendLine("Custom instructions set")

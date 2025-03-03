@@ -49,7 +49,7 @@ export function showOmissionWarning(originalFileContent: string, newFileContent:
 				if (selection === "Follow this guide to fix the issue") {
 					vscode.env.openExternal(
 						vscode.Uri.parse(
-							"https://github.com/cosmix/percy/wiki/Troubleshooting-%E2%80%90-Percy-Deleting-Code-with-%22Rest-of-Code-Here%22-Comments",
+							"https://github.com/cosmix/archimedes/wiki/Troubleshooting-%E2%80%90-Archimedes-Deleting-Code-with-%22Rest-of-Code-Here%22-Comments",
 						),
 					)
 				}

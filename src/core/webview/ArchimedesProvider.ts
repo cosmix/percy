@@ -18,9 +18,9 @@ import { ApiConfiguration, ApiProvider, ModelInfo } from "../../shared/api"
 import { findLast } from "../../shared/array"
 import { ExtensionMessage, ExtensionState, Platform } from "../../shared/ExtensionMessage"
 import { HistoryItem } from "../../shared/HistoryItem"
-import { PercyCheckpointRestore, WebviewMessage } from "../../shared/WebviewMessage"
+import { ArchimedesCheckpointRestore, WebviewMessage } from "../../shared/WebviewMessage"
 import { fileExistsAtPath } from "../../utils/fs"
-import { Percy } from "../Percy"
+import { Archimedes } from "../Archimedes"
 import { openMention } from "../mentions"
 import { getNonce } from "./getNonce"
 import { getUri } from "./getUri"
@@ -100,13 +100,13 @@ export const GlobalFileNames = {
 	clineRules: ".clinerules",
 }
 
-export class PercyProvider implements vscode.WebviewViewProvider {
-	public static readonly sideBarId = "percy.SidebarProvider" // used in package.json as the view's id. This value cannot be changed due to how vscode caches views based on their id, and updating the id would break existing instances of the extension.
-	public static readonly tabPanelId = "percy.TabPanelProvider"
-	private static activeInstances: Set<PercyProvider> = new Set()
+export class ArchimedesProvider implements vscode.WebviewViewProvider {
+	public static readonly sideBarId = "archimedes.SidebarProvider" // used in package.json as the view's id. This value cannot be changed due to how vscode caches views based on their id, and updating the id would break existing instances of the extension.
+	public static readonly tabPanelId = "archimedes.TabPanelProvider"
+	private static activeInstances: Set<ArchimedesProvider> = new Set()
 	private disposables: vscode.Disposable[] = []
 	private view?: vscode.WebviewView | vscode.WebviewPanel
-	private percy?: Percy
+	private archimedes?: Archimedes
 	workspaceTracker?: WorkspaceTracker
 	mcpHub?: McpHub
 	private latestAnnouncementId = "feb-19-2025" // update to some unique identifier when we add a new announcement
@@ -115,8 +115,8 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 		readonly context: vscode.ExtensionContext,
 		private readonly outputChannel: vscode.OutputChannel,
 	) {
-		this.outputChannel.appendLine("PercyProvider instantiated")
-		PercyProvider.activeInstances.add(this)
+		this.outputChannel.appendLine("ArchimedesProvider instantiated")
+		ArchimedesProvider.activeInstances.add(this)
 		this.workspaceTracker = new WorkspaceTracker(this)
 		this.mcpHub = new McpHub(this)
 	}
@@ -127,7 +127,7 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 	- https://github.com/microsoft/vscode-extension-samples/blob/main/webview-sample/src/extension.ts
 	*/
 	async dispose() {
-		this.outputChannel.appendLine("Disposing PercyProvider...")
+		this.outputChannel.appendLine("Disposing ArchimedesProvider...")
 		await this.clearTask()
 		this.outputChannel.appendLine("Cleared task")
 		if (this.view && "dispose" in this.view) {
@@ -145,10 +145,10 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 		this.mcpHub?.dispose()
 		this.mcpHub = undefined
 		this.outputChannel.appendLine("Disposed all disposables")
-		PercyProvider.activeInstances.delete(this)
+		ArchimedesProvider.activeInstances.delete(this)
 	}
 
-	public static getVisibleInstance(): PercyProvider | undefined {
+	public static getVisibleInstance(): ArchimedesProvider | undefined {
 		return findLast(Array.from(this.activeInstances), (instance) => instance.view?.visible === true)
 	}
 
@@ -242,11 +242,11 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 		this.outputChannel.appendLine("Webview view resolved")
 	}
 
-	async initPercyWithTask(task?: string, images?: string[]) {
+	async initArchimedesWithTask(task?: string, images?: string[]) {
 		await this.clearTask() // ensures that an existing task doesn't exist before starting a new one, although this shouldn't be possible since user must clear task before starting a new one
 		const { apiConfiguration, customInstructions, autoApprovalSettings, browserSettings, chatSettings } =
 			await this.getState()
-		this.percy = new Percy(
+		this.archimedes = new Archimedes(
 			this,
 			apiConfiguration,
 			autoApprovalSettings,
@@ -258,11 +258,11 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 		)
 	}
 
-	async initPercyWithHistoryItem(historyItem: HistoryItem) {
+	async initArchimedesWithHistoryItem(historyItem: HistoryItem) {
 		await this.clearTask()
 		const { apiConfiguration, customInstructions, autoApprovalSettings, browserSettings, chatSettings } =
 			await this.getState()
-		this.percy = new Percy(
+		this.archimedes = new Archimedes(
 			this,
 			apiConfiguration,
 			autoApprovalSettings,
@@ -344,7 +344,7 @@ export class PercyProvider implements vscode.WebviewViewProvider {
             <meta http-equiv="Content-Security-Policy" content="default-src 'none'; font-src ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline'; img-src ${webview.cspSource} https: data:; script-src 'nonce-${nonce}';">
             <link rel="stylesheet" type="text/css" href="${stylesUri}">
 			<link href="${codiconsUri}" rel="stylesheet" />
-            <title>Percy</title>
+            <title>Archimedes</title>
           </head>
           <body>
             <noscript>You need to enable JavaScript to run this app.</noscript>
@@ -420,8 +420,8 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 						// You can send any JSON serializable data.
 						// Could also do this in extension .ts
 						//this.postMessageToWebview({ type: "text", text: `Extension: ${Date.now()}` })
-						// initializing new instance of Percy will make sure that any agentically running promises in old instance don't affect our new task. this essentially creates a fresh slate for the new task
-						await this.initPercyWithTask(message.text, message.images)
+						// initializing new instance of Archimedes will make sure that any agentically running promises in old instance don't affect our new task. this essentially creates a fresh slate for the new task
+						await this.initArchimedesWithTask(message.text, message.images)
 						break
 					case "apiConfiguration":
 						if (message.apiConfiguration) {
@@ -507,8 +507,8 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 							await this.updateGlobalState("qwenApiLine", qwenApiLine)
 							await this.updateGlobalState("requestyModelId", requestyModelId)
 							await this.updateGlobalState("togetherModelId", togetherModelId)
-							if (this.percy) {
-								this.percy.api = buildApiHandler(message.apiConfiguration)
+							if (this.archimedes) {
+								this.archimedes.api = buildApiHandler(message.apiConfiguration)
 							}
 						}
 						await this.postStateToWebview()
@@ -519,8 +519,8 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 					case "autoApprovalSettings":
 						if (message.autoApprovalSettings) {
 							await this.updateGlobalState("autoApprovalSettings", message.autoApprovalSettings)
-							if (this.percy) {
-								this.percy.autoApprovalSettings = message.autoApprovalSettings
+							if (this.archimedes) {
+								this.archimedes.autoApprovalSettings = message.autoApprovalSettings
 							}
 							await this.postStateToWebview()
 						}
@@ -528,8 +528,8 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 					case "browserSettings":
 						if (message.browserSettings) {
 							await this.updateGlobalState("browserSettings", message.browserSettings)
-							if (this.percy) {
-								this.percy.updateBrowserSettings(message.browserSettings)
+							if (this.archimedes) {
+								this.archimedes.updateBrowserSettings(message.browserSettings)
 							}
 							await this.postStateToWebview()
 						}
@@ -545,7 +545,7 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 					// 	}
 					// 	break
 					case "askResponse":
-						this.percy?.handleWebviewAskResponse(message.askResponse!, message.text, message.images)
+						this.archimedes?.handleWebviewAskResponse(message.askResponse!, message.text, message.images)
 						break
 					case "clearTask":
 						// newTask will start a new task with a given task text, while clear task resets the current session and allows for a new task to be started
@@ -564,7 +564,7 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 						})
 						break
 					case "exportCurrentTask":
-						const currentTaskId = this.percy?.taskId
+						const currentTaskId = this.archimedes?.taskId
 						if (currentTaskId) {
 							this.exportTaskWithId(currentTaskId)
 						}
@@ -621,7 +621,7 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 						break
 					case "checkpointDiff": {
 						if (message.number) {
-							await this.percy?.presentMultifileDiff(message.number, false)
+							await this.archimedes?.presentMultifileDiff(message.number, false)
 						}
 						break
 					}
@@ -630,19 +630,19 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 						// cancel task waits for any open editor to be reverted and starts a new cline instance
 						if (message.number) {
 							// wait for messages to be loaded
-							await pWaitFor(() => this.percy?.isInitialized === true, {
+							await pWaitFor(() => this.archimedes?.isInitialized === true, {
 								timeout: 3_000,
 							}).catch(() => {
 								console.error("Failed to init new cline instance")
 							})
 							// NOTE: cancelTask awaits abortTask, which awaits diffViewProvider.revertChanges, which reverts any edited files, allowing us to reset to a checkpoint rather than running into a state where the revertChanges function is called alongside or after the checkpoint reset
-							await this.percy?.restoreCheckpoint(message.number, message.text! as PercyCheckpointRestore)
+							await this.archimedes?.restoreCheckpoint(message.number, message.text! as ArchimedesCheckpointRestore)
 						}
 						break
 					}
 					case "taskCompletionViewChanges": {
 						if (message.number) {
-							await this.percy?.presentMultifileDiff(message.number, true)
+							await this.archimedes?.presentMultifileDiff(message.number, true)
 						}
 						break
 					}
@@ -779,7 +779,7 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 						const settingsFilter = message.text || ""
 						await vscode.commands.executeCommand(
 							"workbench.action.openSettings",
-							`@ext:org.cosmix.percy ${settingsFilter}`.trim(), // trim whitespace if no settings filter
+							`@ext:org.cosmix.archimedes ${settingsFilter}`.trim(), // trim whitespace if no settings filter
 						)
 						break
 					}
@@ -929,10 +929,10 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 				}
 			}
 
-			// Update Percy instance if it exists
-			if (this.percy) {
+			// Update Archimedes instance if it exists
+			if (this.archimedes) {
 				const { apiConfiguration: updatedApiConfiguration } = await this.getState()
-				this.percy.api = buildApiHandler(updatedApiConfiguration)
+				this.archimedes.api = buildApiHandler(updatedApiConfiguration)
 			}
 		}
 
@@ -946,11 +946,11 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 		await this.updateGlobalState("chatSettings", finalChatSettings)
 		await this.postStateToWebview()
 
-		if (this.percy) {
-			this.percy.updateChatSettings(finalChatSettings)
-			if (this.percy.isAwaitingPlanResponse && didSwitchToActMode) {
-				this.percy.didRespondToPlanAskBySwitchingMode = true
-				// This is necessary for the webview to update accordingly, but Percy instance will not send text back as feedback message
+		if (this.archimedes) {
+			this.archimedes.updateChatSettings(finalChatSettings)
+			if (this.archimedes.isAwaitingPlanResponse && didSwitchToActMode) {
+				this.archimedes.didRespondToPlanAskBySwitchingMode = true
+				// This is necessary for the webview to update accordingly, but Archimedes instance will not send text back as feedback message
 				await this.postMessageToWebview({
 					type: "invoke",
 					invoke: "sendMessage",
@@ -964,39 +964,39 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 	}
 
 	async cancelTask() {
-		if (this.percy) {
-			const { historyItem } = await this.getTaskWithId(this.percy.taskId)
+		if (this.archimedes) {
+			const { historyItem } = await this.getTaskWithId(this.archimedes.taskId)
 			try {
-				await this.percy.abortTask()
+				await this.archimedes.abortTask()
 			} catch (error) {
 				console.error("Failed to abort task", error)
 			}
 			await pWaitFor(
 				() =>
-					this.percy === undefined ||
-					this.percy.isStreaming === false ||
-					this.percy.didFinishAbortingStream ||
-					this.percy.isWaitingForFirstChunk, // if only first chunk is processed, then there's no need to wait for graceful abort (closes edits, browser, etc)
+					this.archimedes === undefined ||
+					this.archimedes.isStreaming === false ||
+					this.archimedes.didFinishAbortingStream ||
+					this.archimedes.isWaitingForFirstChunk, // if only first chunk is processed, then there's no need to wait for graceful abort (closes edits, browser, etc)
 				{
 					timeout: 3_000,
 				},
 			).catch(() => {
 				console.error("Failed to abort task")
 			})
-			if (this.percy) {
+			if (this.archimedes) {
 				// 'abandoned' will prevent this cline instance from affecting future cline instance gui. this may happen if its hanging on a streaming request
-				this.percy.abandoned = true
+				this.archimedes.abandoned = true
 			}
-			await this.initPercyWithHistoryItem(historyItem) // clears task again, so we need to abortTask manually above
-			// await this.postStateToWebview() // new Percy instance will post state when it's ready. having this here sent an empty messages array to webview leading to virtuoso having to reload the entire list
+			await this.initArchimedesWithHistoryItem(historyItem) // clears task again, so we need to abortTask manually above
+			// await this.postStateToWebview() // new Archimedes instance will post state when it's ready. having this here sent an empty messages array to webview leading to virtuoso having to reload the entire list
 		}
 	}
 
 	async updateCustomInstructions(instructions?: string) {
 		// User may be clearing the field
 		await this.updateGlobalState("customInstructions", instructions || undefined)
-		if (this.percy) {
-			this.percy.customInstructions = instructions || undefined
+		if (this.archimedes) {
+			this.archimedes.customInstructions = instructions || undefined
 		}
 		await this.postStateToWebview()
 	}
@@ -1024,11 +1024,11 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 
 	async ensureMcpServersDirectoryExists(): Promise<string> {
 		const userDocumentsPath = await this.getDocumentsPath()
-		const mcpServersDir = path.join(userDocumentsPath, "Percy", "MCP")
+		const mcpServersDir = path.join(userDocumentsPath, "Archimedes", "MCP")
 		try {
 			await fs.mkdir(mcpServersDir, { recursive: true })
 		} catch (error) {
-			return "~/Documents/Percy/MCP" // in case creating a directory in documents fails for whatever reason (e.g. permissions) - this is fine since this path is only ever used in the system prompt
+			return "~/Documents/Archimedes/MCP" // in case creating a directory in documents fails for whatever reason (e.g. permissions) - this is fine since this path is only ever used in the system prompt
 		}
 		return mcpServersDir
 	}
@@ -1225,7 +1225,7 @@ export class PercyProvider implements vscode.WebviewViewProvider {
 Here is the project's README to help you get started:\n\n${mcpDetails.readmeContent}\n${mcpDetails.llmsInstallationContent}`
 
 			// Initialize task and show chat view
-			await this.initPercyWithTask(task)
+			await this.initArchimedesWithTask(task)
 			await this.postMessageToWebview({
 				type: "action",
 				action: "chatButtonClicked",
@@ -1303,8 +1303,8 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 		await this.updateGlobalState("apiProvider", openrouter)
 		await this.storeSecret("openRouterApiKey", apiKey)
 		await this.postStateToWebview()
-		if (this.percy) {
-			this.percy.api = buildApiHandler({
+		if (this.archimedes) {
+			this.archimedes.api = buildApiHandler({
 				apiProvider: openrouter,
 				openRouterApiKey: apiKey,
 			})
@@ -1483,10 +1483,10 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 	}
 
 	async showTaskWithId(id: string) {
-		if (id !== this.percy?.taskId) {
+		if (id !== this.archimedes?.taskId) {
 			// non-current task
 			const { historyItem } = await this.getTaskWithId(id)
-			await this.initPercyWithHistoryItem(historyItem) // clears existing task
+			await this.initArchimedesWithHistoryItem(historyItem) // clears existing task
 		}
 		await this.postMessageToWebview({
 			type: "action",
@@ -1500,7 +1500,7 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 	}
 
 	async deleteTaskWithId(id: string) {
-		if (id === this.percy?.taskId) {
+		if (id === this.archimedes?.taskId) {
 			await this.clearTask()
 		}
 
@@ -1569,9 +1569,9 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 			apiConfiguration,
 			customInstructions,
 			uriScheme: vscode.env.uriScheme,
-			currentTaskItem: this.percy?.taskId ? (taskHistory || []).find((item) => item.id === this.percy?.taskId) : undefined,
-			checkpointTrackerErrorMessage: this.percy?.checkpointTrackerErrorMessage,
-			percyMessages: this.percy?.percyMessages || [],
+			currentTaskItem: this.archimedes?.taskId ? (taskHistory || []).find((item) => item.id === this.archimedes?.taskId) : undefined,
+			checkpointTrackerErrorMessage: this.archimedes?.checkpointTrackerErrorMessage,
+			archimedesMessages: this.archimedes?.archimedesMessages || [],
 			taskHistory: (taskHistory || []).filter((item) => item.ts && item.task).sort((a, b) => b.ts - a.ts),
 			shouldShowAnnouncement: lastShownAnnouncementId !== this.latestAnnouncementId,
 			platform: process.platform as Platform,
@@ -1584,8 +1584,8 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 	}
 
 	async clearTask() {
-		this.percy?.abortTask()
-		this.percy = undefined // removes reference to it, so once promises end it will be garbage collected
+		this.archimedes?.abortTask()
+		this.archimedes = undefined // removes reference to it, so once promises end it will be garbage collected
 	}
 
 	// Caching mechanism to keep track of webview messages + API conversation history per provider instance
@@ -1593,10 +1593,10 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 	/*
 	Now that we use retainContextWhenHidden, we don't have to store a cache of cline messages in the user's state, but we could to reduce memory footprint in long conversations.
 
-	- We have to be careful of what state is shared between PercyProvider instances since there could be multiple instances of the extension running at once. For example when we cached cline messages using the same key, two instances of the extension could end up using the same key and overwriting each other's messages.
+	- We have to be careful of what state is shared between ArchimedesProvider instances since there could be multiple instances of the extension running at once. For example when we cached cline messages using the same key, two instances of the extension could end up using the same key and overwriting each other's messages.
 	- Some state does need to be shared between the instances, i.e. the API key--however there doesn't seem to be a good way to notify the other instances that the API key has changed.
 
-	We need to use a unique identifier for each PercyProvider instance's message cache since we could be running several instances of the extension outside of just the sidebar i.e. in editor panels.
+	We need to use a unique identifier for each ArchimedesProvider instance's message cache since we could be running several instances of the extension outside of just the sidebar i.e. in editor panels.
 
 	// conversation history to send in API requests
 
@@ -1900,9 +1900,9 @@ Here is the project's README to help you get started:\n\n${mcpDetails.readmeCont
 		for (const key of secretKeys) {
 			await this.storeSecret(key, undefined)
 		}
-		if (this.percy) {
-			this.percy.abortTask()
-			this.percy = undefined
+		if (this.archimedes) {
+			this.archimedes.abortTask()
+			this.archimedes = undefined
 		}
 		vscode.window.showInformationMessage("State reset")
 		await this.postStateToWebview()

@@ -1,14 +1,14 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import * as diff from "diff"
 import * as path from "path"
-import { PercyIgnoreController, LOCK_TEXT_SYMBOL } from "../ignore/PercyIgnoreController"
+import { ArchimedesIgnoreController, LOCK_TEXT_SYMBOL } from "../ignore/ArchimedesIgnoreController"
 
 export const formatResponse = {
 	toolDenied: () => `The user denied this operation.`,
 
 	toolError: (error?: string) => `The tool execution failed with the following error:\n<error>\n${error}\n</error>`,
 
-	percyIgnoreError: (path: string) =>
+	archimedesIgnoreError: (path: string) =>
 		`Access to ${path} is blocked by the .clineignore file settings. You must try to continue in the task without using this file, or ask the user to update the .clineignore file.`,
 
 	noToolsUsed: () =>
@@ -51,7 +51,7 @@ Otherwise, if you have not completed the task and do not need additional informa
 		absolutePath: string,
 		files: string[],
 		didHitLimit: boolean,
-		clineIgnoreController?: PercyIgnoreController,
+		clineIgnoreController?: ArchimedesIgnoreController,
 	): string => {
 		const sorted = files
 			.map((file) => {

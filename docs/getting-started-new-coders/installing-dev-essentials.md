@@ -1,6 +1,6 @@
-# Installing Essential Development Tools with Percy | New Coders
+# Installing Essential Development Tools with Archimedes | New Coders
 
-When you start coding, you'll need some essential development tools installed on your computer. Percy can help you install everything you need in a safe, guided way.
+When you start coding, you'll need some essential development tools installed on your computer. Archimedes can help you install everything you need in a safe, guided way.
 
 ## The Essential Tools
 
@@ -12,22 +12,22 @@ Here are the core tools you'll need for development:
 -   **Python**: A programming language used by many development tools
 -   **Additional utilities**: Tools like wget and jq that help with downloading files and processing data
 
-## Let Percy Install Everything
+## Let Archimedes Install Everything
 
-Copy this prompt and paste it into Percy:
+Copy this prompt and paste it into Archimedes:
 
 ```bash
-Hello Percy! I need help setting up my Mac for software development. Could you please help me install the essential development tools like Homebrew, Node.js, Git, Python, and any other utilities that are commonly needed for coding? I'd like you to guide me through the process step-by-step, explaining what each tool does and making sure everything is installed correctly.
+Hello Archimedes! I need help setting up my Mac for software development. Could you please help me install the essential development tools like Homebrew, Node.js, Git, Python, and any other utilities that are commonly needed for coding? I'd like you to guide me through the process step-by-step, explaining what each tool does and making sure everything is installed correctly.
 ```
 
 ## What Will Happen
 
-1. Percy will first install Homebrew, which is like an "app store" for development tools
-2. Using Homebrew, Percy will then install other essential tools like Node.js and Git
+1. Archimedes will first install Homebrew, which is like an "app store" for development tools
+2. Using Homebrew, Archimedes will then install other essential tools like Node.js and Git
 3. For each installation step:
-    - Percy will show you the exact command it wants to run
+    - Archimedes will show you the exact command it wants to run
     - You'll need to approve each command before it runs
-    - Percy will verify each installation was successful
+    - Archimedes will verify each installation was successful
 
 ## Why These Tools Are Important
 
@@ -47,7 +47,7 @@ Hello Percy! I need help setting up my Mac for software development. Could you p
 
 ## Notes
 
--   The installation process is interactive - Percy will guide you through each step
+-   The installation process is interactive - Archimedes will guide you through each step
 -   You may need to enter your computer's password for some installations. When prompted, you will not see any characters being typed on the screen. This is normal and is a security feature to protect your password. Just type your password and press Enter.
 
 **Example:**
@@ -60,7 +60,7 @@ Password:
 _Type your password here, even though nothing will show up on the screen. Press Enter when you're done._
 
 -   All commands will be shown to you for approval before they run
--   If you run into any issues, Percy will help troubleshoot them
+-   If you run into any issues, Archimedes will help troubleshoot them
 
 ## Additional Tips for New Coders
 
@@ -102,4 +102,4 @@ The **Problems** section in VS Code shows any errors or warnings in your code. Y
 
 ## Next Steps
 
-After installing these tools, you'll be ready to start coding! Return to the [Getting Started with Percy for New Coders](../getting-started-new-coders/README.md) guide to continue your journey.
+After installing these tools, you'll be ready to start coding! Return to the [Getting Started with Archimedes for New Coders](../getting-started-new-coders/README.md) guide to continue your journey.

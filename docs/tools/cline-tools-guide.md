@@ -1,8 +1,8 @@
-# Percy Tools Reference Guide
+# Archimedes Tools Reference Guide
 
-## What Can Percy Do?
+## What Can Archimedes Do?
 
-Percy is your AI assistant that can:
+Archimedes is your AI assistant that can:
 
 -   Edit and create files in your project
 -   Run terminal commands
@@ -24,7 +24,7 @@ Percy is your AI assistant that can:
     - Example: "@file:src/components/App.tsx"
 
 3. **Review Changes**
-    - Percy will show diffs before making changes
+    - Archimedes will show diffs before making changes
     - You can edit or reject changes
 
 ## Key Features
@@ -54,9 +54,9 @@ Percy is your AI assistant that can:
 
 ## Available Tools
 
-For the most up-to-date implementation details, you can view the full source code in the [Percy repository](https://github.com/cline/cline/blob/main/src/core/Percy.ts).
+For the most up-to-date implementation details, you can view the full source code in the [Archimedes repository](https://github.com/cline/cline/blob/main/src/core/Archimedes.ts).
 
-Percy has access to the following tools for various tasks:
+Archimedes has access to the following tools for various tasks:
 
 1. **File Operations**
 
@@ -75,8 +75,8 @@ Percy has access to the following tools for various tasks:
 
     - `use_mcp_tool`: Use tools from MCP servers
     - `access_mcp_resource`: Access MCP server resources
-    - Users can create custom MCP tools that Percy can then access
-    - Example: Create a weather API tool that Percy can use to fetch forecasts
+    - Users can create custom MCP tools that Archimedes can then access
+    - Example: Create a weather API tool that Archimedes can use to fetch forecasts
 
 4. **Interaction Tools**
     - `ask_followup_question`: Ask user for clarification
@@ -134,4 +134,4 @@ Each tool has specific parameters and usage patterns. Here are some examples:
 
 -   [Join the Discord community](https://discord.gg/cline)
 -   Check the documentation
--   Provide feedback to improve Percy
+-   Provide feedback to improve Archimedes

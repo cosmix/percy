@@ -1,74 +1,74 @@
-# Building Custom MCP Servers From Scratch Using Percy: A Comprehensive Guide
+# Building Custom MCP Servers From Scratch Using Archimedes: A Comprehensive Guide
 
-This guide provides a comprehensive walkthrough of building a custom MCP (Model Context Protocol) server from scratch, leveraging the powerful AI capabilities of Percy. The example used will be building a "GitHub Assistant Server" to illustrate the process.
+This guide provides a comprehensive walkthrough of building a custom MCP (Model Context Protocol) server from scratch, leveraging the powerful AI capabilities of Archimedes. The example used will be building a "GitHub Assistant Server" to illustrate the process.
 
-## Understanding MCP and Percy's Role in Building Servers
+## Understanding MCP and Archimedes's Role in Building Servers
 
 ### What is MCP?
 
 The Model Context Protocol (MCP) acts as a bridge between large language models (LLMs) like Claude and external tools and data. MCP consists of two key components:
 
--   **MCP Hosts:** These are applications that integrate with LLMs, such as Percy, Claude Desktop, and others.
+-   **MCP Hosts:** These are applications that integrate with LLMs, such as Archimedes, Claude Desktop, and others.
 -   **MCP Servers:** These are small programs specifically designed to expose data or specific functionalities to the LLMs through the MCP.
 
 This setup is beneficial when you have an MCP-compliant chat interface, like Claude Desktop, which can then leverage these servers to access information and execute actions.
 
-### Why Use Percy to Create MCP Servers?
+### Why Use Archimedes to Create MCP Servers?
 
-Percy streamlines the process of building and integrating MCP servers by utilizing its AI capabilities to:
+Archimedes streamlines the process of building and integrating MCP servers by utilizing its AI capabilities to:
 
--   **Understand Natural Language Instructions:** You can communicate with Percy in a way that feels natural, making the development process intuitive and user-friendly.
--   **Clone Repositories:** Percy can directly clone existing MCP server repositories from GitHub, simplifying the process of using pre-built servers.
--   **Build Servers:** Once the necessary code is in place, Percy can execute commands like `npm run build` to compile and prepare the server for use.
--   **Handle Configuration:** Percy manages the configuration files required for the MCP server, including adding the new server to the `cline_mcp_settings.json` file.
--   **Assist with Troubleshooting:** If errors arise during development or testing, Percy can help identify the cause and suggest solutions, making debugging easier.
+-   **Understand Natural Language Instructions:** You can communicate with Archimedes in a way that feels natural, making the development process intuitive and user-friendly.
+-   **Clone Repositories:** Archimedes can directly clone existing MCP server repositories from GitHub, simplifying the process of using pre-built servers.
+-   **Build Servers:** Once the necessary code is in place, Archimedes can execute commands like `npm run build` to compile and prepare the server for use.
+-   **Handle Configuration:** Archimedes manages the configuration files required for the MCP server, including adding the new server to the `cline_mcp_settings.json` file.
+-   **Assist with Troubleshooting:** If errors arise during development or testing, Archimedes can help identify the cause and suggest solutions, making debugging easier.
 
-## Building a GitHub Assistant Server Using Percy: A Step-by-Step Guide
+## Building a GitHub Assistant Server Using Archimedes: A Step-by-Step Guide
 
-This section demonstrates how to create a GitHub Assistant server using Percy. This server will be able to interact with GitHub data and perform useful actions:
+This section demonstrates how to create a GitHub Assistant server using Archimedes. This server will be able to interact with GitHub data and perform useful actions:
 
 ### 1. Defining the Goal and Initial Requirements
 
-First, you need to clearly communicate to Percy the purpose and functionalities of your server:
+First, you need to clearly communicate to Archimedes the purpose and functionalities of your server:
 
--   **Server Goal:** Inform Percy that you want to build a "GitHub Assistant Server". Specify that this server will interact with GitHub data and potentially mention the types of data you are interested in, like issues, pull requests, and user profiles.
--   **Access Requirements:** Let Percy know that you need to access the GitHub API. Explain that this will likely require a personal access token (GITHUB_TOKEN) for authentication.
--   **Data Specificity (Optional):** You can optionally tell Percy about specific fields of data you want to extract from GitHub, but this can also be determined later as you define the server's tools.
+-   **Server Goal:** Inform Archimedes that you want to build a "GitHub Assistant Server". Specify that this server will interact with GitHub data and potentially mention the types of data you are interested in, like issues, pull requests, and user profiles.
+-   **Access Requirements:** Let Archimedes know that you need to access the GitHub API. Explain that this will likely require a personal access token (GITHUB_TOKEN) for authentication.
+-   **Data Specificity (Optional):** You can optionally tell Archimedes about specific fields of data you want to extract from GitHub, but this can also be determined later as you define the server's tools.
 
-### 2. Percy Initiates the Project Setup
+### 2. Archimedes Initiates the Project Setup
 
-Based on your instructions, Percy starts the project setup process:
+Based on your instructions, Archimedes starts the project setup process:
 
--   **Project Structure:** Percy might ask you for a name for your server. Afterward, it uses the MCP `create-server` tool to generate the basic project structure for your GitHub Assistant server. This usually involves creating a new directory with essential files like `package.json`, `tsconfig.json`, and a `src` folder for your TypeScript code. \
--   **Code Generation:** Percy generates starter code for your server, including:
+-   **Project Structure:** Archimedes might ask you for a name for your server. Afterward, it uses the MCP `create-server` tool to generate the basic project structure for your GitHub Assistant server. This usually involves creating a new directory with essential files like `package.json`, `tsconfig.json`, and a `src` folder for your TypeScript code. \
+-   **Code Generation:** Archimedes generates starter code for your server, including:
     -   **File Handling Utilities:** Functions to help with reading and writing files, commonly used for storing data or logs. \
-    -   **GitHub API Client:** Code to interact with the GitHub API, often using libraries like `@octokit/graphql`. Percy will likely ask for your GitHub username or the repositories you want to work with. \
-    -   **Core Server Logic:** The basic framework for handling requests from Percy and routing them to the appropriate functions, as defined by the MCP. \
--   **Dependency Management:** Percy analyzes the code and identifies necessary dependencies, adding them to the `package.json` file. For example, interacting with the GitHub API will likely require packages like `@octokit/graphql`, `graphql`, `axios`, or similar. \
--   **Dependency Installation:** Percy executes `npm install` to download and install the dependencies listed in `package.json`, ensuring your server has all the required libraries to function correctly. \
--   **Path Corrections:** During development, you might move files or directories around. Percy intelligently recognizes these changes and automatically updates file paths in your code to maintain consistency.
--   **Configuration:** Percy will modify the `cline_mcp_settings.json` file to add your new GitHub Assistant server. This will include:
-    -   **Server Start Command:** Percy will add the appropriate command to start your server (e.g., `npm run start` or a similar command).
-    -   **Environment Variables:** Percy will add the required `GITHUB_TOKEN` variable. Percy might ask you for your GitHub personal access token, or it might guide you to safely store it in a separate environment file. \
--   **Progress Documentation:** Throughout the process, Percy keeps the "Memory Bank" files updated. These files document the project's progress, highlighting completed tasks, tasks in progress, and pending tasks.
+    -   **GitHub API Client:** Code to interact with the GitHub API, often using libraries like `@octokit/graphql`. Archimedes will likely ask for your GitHub username or the repositories you want to work with. \
+    -   **Core Server Logic:** The basic framework for handling requests from Archimedes and routing them to the appropriate functions, as defined by the MCP. \
+-   **Dependency Management:** Archimedes analyzes the code and identifies necessary dependencies, adding them to the `package.json` file. For example, interacting with the GitHub API will likely require packages like `@octokit/graphql`, `graphql`, `axios`, or similar. \
+-   **Dependency Installation:** Archimedes executes `npm install` to download and install the dependencies listed in `package.json`, ensuring your server has all the required libraries to function correctly. \
+-   **Path Corrections:** During development, you might move files or directories around. Archimedes intelligently recognizes these changes and automatically updates file paths in your code to maintain consistency.
+-   **Configuration:** Archimedes will modify the `cline_mcp_settings.json` file to add your new GitHub Assistant server. This will include:
+    -   **Server Start Command:** Archimedes will add the appropriate command to start your server (e.g., `npm run start` or a similar command).
+    -   **Environment Variables:** Archimedes will add the required `GITHUB_TOKEN` variable. Archimedes might ask you for your GitHub personal access token, or it might guide you to safely store it in a separate environment file. \
+-   **Progress Documentation:** Throughout the process, Archimedes keeps the "Memory Bank" files updated. These files document the project's progress, highlighting completed tasks, tasks in progress, and pending tasks.
 
 ### 3. Testing the GitHub Assistant Server
 
-Once Percy has completed the setup and configuration, you are ready to test the server's functionality:
+Once Archimedes has completed the setup and configuration, you are ready to test the server's functionality:
 
--   **Using Server Tools:** Percy will create various "tools" within your server, representing actions or data retrieval functions. To test, you would instruct Percy to use a specific tool. Here are examples related to GitHub:
-    -   **`get_issues`:** To test retrieving issues, you might say to Percy, "Percy, use the `get_issues` tool from the GitHub Assistant Server to show me the open issues from the 'cline/cline' repository." Percy would then execute this tool and present you with the results.
-    -   **`get_pull_requests`:** To test pull request retrieval, you could ask Percy to "use the `get_pull_requests` tool to show me the merged pull requests from the 'facebook/react' repository from the last month." Percy would execute this tool, using your GITHUB_TOKEN to access the GitHub API, and display the requested data. \
--   **Providing Necessary Information:** Percy might prompt you for additional information required to execute the tool, such as the repository name, specific date ranges, or other filtering criteria.
--   **Percy Executes the Tool:** Percy handles the communication with the GitHub API, retrieves the requested data, and presents it in a clear and understandable format.
+-   **Using Server Tools:** Archimedes will create various "tools" within your server, representing actions or data retrieval functions. To test, you would instruct Archimedes to use a specific tool. Here are examples related to GitHub:
+    -   **`get_issues`:** To test retrieving issues, you might say to Archimedes, "Archimedes, use the `get_issues` tool from the GitHub Assistant Server to show me the open issues from the 'cline/cline' repository." Archimedes would then execute this tool and present you with the results.
+    -   **`get_pull_requests`:** To test pull request retrieval, you could ask Archimedes to "use the `get_pull_requests` tool to show me the merged pull requests from the 'facebook/react' repository from the last month." Archimedes would execute this tool, using your GITHUB_TOKEN to access the GitHub API, and display the requested data. \
+-   **Providing Necessary Information:** Archimedes might prompt you for additional information required to execute the tool, such as the repository name, specific date ranges, or other filtering criteria.
+-   **Archimedes Executes the Tool:** Archimedes handles the communication with the GitHub API, retrieves the requested data, and presents it in a clear and understandable format.
 
 ### 4. Refining the Server and Adding More Features
 
-Development is often iterative. As you work with your GitHub Assistant Server, you'll discover new functionalities to add, or ways to improve existing ones. Percy can assist in this ongoing process:
+Development is often iterative. As you work with your GitHub Assistant Server, you'll discover new functionalities to add, or ways to improve existing ones. Archimedes can assist in this ongoing process:
 
--   **Discussions with Percy:** Talk to Percy about your ideas for new tools or improvements. For example, you might want a tool to `create_issue` or to `get_user_profile`. Discuss the required inputs and outputs for these tools with Percy.
--   **Code Refinement:** Percy can help you write the necessary code for new features. Percy can generate code snippets, suggest best practices, and help you debug any issues that arise.
--   **Testing New Functionalities:** After adding new tools or functionalities, you would test them again using Percy, ensuring they work as expected and integrate well with the rest of the server.
--   **Integration with Other Tools:** You might want to integrate your GitHub Assistant server with other tools. For instance, in the "github-cline-mcp" source, Percy assists in integrating the server with Notion to create a dynamic dashboard that tracks GitHub activity. \
+-   **Discussions with Archimedes:** Talk to Archimedes about your ideas for new tools or improvements. For example, you might want a tool to `create_issue` or to `get_user_profile`. Discuss the required inputs and outputs for these tools with Archimedes.
+-   **Code Refinement:** Archimedes can help you write the necessary code for new features. Archimedes can generate code snippets, suggest best practices, and help you debug any issues that arise.
+-   **Testing New Functionalities:** After adding new tools or functionalities, you would test them again using Archimedes, ensuring they work as expected and integrate well with the rest of the server.
+-   **Integration with Other Tools:** You might want to integrate your GitHub Assistant server with other tools. For instance, in the "github-cline-mcp" source, Archimedes assists in integrating the server with Notion to create a dynamic dashboard that tracks GitHub activity. \
 
-By following these steps, you can create a custom MCP server from scratch using Percy, leveraging its powerful AI capabilities to streamline the entire process. Percy not only assists with the technical aspects of building the server but also helps you think through the design, functionalities, and potential integrations.
+By following these steps, you can create a custom MCP server from scratch using Archimedes, leveraging its powerful AI capabilities to streamline the entire process. Archimedes not only assists with the technical aspects of building the server but also helps you think through the design, functionalities, and potential integrations.

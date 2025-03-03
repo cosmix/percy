@@ -6,11 +6,11 @@ import { Virtuoso, type VirtuosoHandle } from "react-virtuoso"
 import styled from "styled-components"
 import {
 	ExtensionMessage,
-	PercyApiReqInfo,
-	PercyAsk,
-	PercyMessage,
-	PercySayBrowserAction,
-	PercySayTool,
+	ArchimedesApiReqInfo,
+	ArchimedesAsk,
+	ArchimedesMessage,
+	ArchimedesSayBrowserAction,
+	ArchimedesSayTool,
 } from "../../../../src/shared/ExtensionMessage"
 import { findLast } from "../../../../src/shared/array"
 import { combineApiRequests } from "../../../../src/shared/combineApiRequests"
@@ -36,18 +36,18 @@ interface ChatViewProps {
 export const MAX_IMAGES_PER_MESSAGE = 20 // Anthropic limits to 20 images
 
 const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryView }: ChatViewProps) => {
-	const { percyMessages: messages, taskHistory, apiConfiguration } = useExtensionState()
+	const { archimedesMessages: messages, taskHistory, apiConfiguration } = useExtensionState()
 
 	//const task = messages.length > 0 ? (messages[0].say === "task" ? messages[0] : undefined) : undefined) : undefined
-	const task = useMemo(() => messages.at(0), [messages]) // leaving this less safe version here since if the first message is not a task, then the extension is in a bad state and needs to be debugged (see Percy.abort)
+	const task = useMemo(() => messages.at(0), [messages]) // leaving this less safe version here since if the first message is not a task, then the extension is in a bad state and needs to be debugged (see Archimedes.abort)
 	const modifiedMessages = useMemo(() => combineApiRequests(combineCommandSequences(messages.slice(1))), [messages])
 	// has to be after api_req_finished are all reduced into api_req_started messages
 	const apiMetrics = useMemo(() => getApiMetrics(modifiedMessages), [modifiedMessages])
 
 	const lastApiReqTotalTokens = useMemo(() => {
-		const getTotalTokensFromApiReqMessage = (msg: PercyMessage) => {
+		const getTotalTokensFromApiReqMessage = (msg: ArchimedesMessage) => {
 			if (!msg.text) return 0
-			const { tokensIn, tokensOut, cacheWrites, cacheReads }: PercyApiReqInfo = JSON.parse(msg.text)
+			const { tokensIn, tokensOut, cacheWrites, cacheReads }: ArchimedesApiReqInfo = JSON.parse(msg.text)
 			return (tokensIn || 0) + (tokensOut || 0) + (cacheWrites || 0) + (cacheReads || 0)
 		}
 		const lastApiReqMessage = findLast(modifiedMessages, (msg) => {
@@ -64,7 +64,7 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 	const [selectedImages, setSelectedImages] = useState<string[]>([])
 
 	// we need to hold on to the ask because useEffect > lastMessage will always let us know when an ask comes in and handle it, but by the time handleMessage is called, the last message might not be the ask anymore (it could be a say that followed)
-	const [clineAsk, setPercyAsk] = useState<PercyAsk | undefined>(undefined)
+	const [clineAsk, setArchimedesAsk] = useState<ArchimedesAsk | undefined>(undefined)
 	const [enableButtons, setEnableButtons] = useState<boolean>(false)
 	const [primaryButtonText, setPrimaryButtonText] = useState<string | undefined>("Approve")
 	const [secondaryButtonText, setSecondaryButtonText] = useState<string | undefined>("Reject")
@@ -91,44 +91,44 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 					switch (lastMessage.ask) {
 						case "api_req_failed":
 							setTextAreaDisabled(true)
-							setPercyAsk("api_req_failed")
+							setArchimedesAsk("api_req_failed")
 							setEnableButtons(true)
 							setPrimaryButtonText("Retry")
 							setSecondaryButtonText("Start New Task")
 							break
 						case "mistake_limit_reached":
 							setTextAreaDisabled(false)
-							setPercyAsk("mistake_limit_reached")
+							setArchimedesAsk("mistake_limit_reached")
 							setEnableButtons(true)
 							setPrimaryButtonText("Proceed Anyways")
 							setSecondaryButtonText("Start New Task")
 							break
 						case "auto_approval_max_req_reached":
 							setTextAreaDisabled(true)
-							setPercyAsk("auto_approval_max_req_reached")
+							setArchimedesAsk("auto_approval_max_req_reached")
 							setEnableButtons(true)
 							setPrimaryButtonText("Proceed")
 							setSecondaryButtonText("Start New Task")
 							break
 						case "followup":
 							setTextAreaDisabled(isPartial)
-							setPercyAsk("followup")
+							setArchimedesAsk("followup")
 							setEnableButtons(false)
 							// setPrimaryButtonText(undefined)
 							// setSecondaryButtonText(undefined)
 							break
 						case "plan_mode_response":
 							setTextAreaDisabled(isPartial)
-							setPercyAsk("plan_mode_response")
+							setArchimedesAsk("plan_mode_response")
 							setEnableButtons(false)
 							// setPrimaryButtonText(undefined)
 							// setSecondaryButtonText(undefined)
 							break
 						case "tool":
 							setTextAreaDisabled(isPartial)
-							setPercyAsk("tool")
+							setArchimedesAsk("tool")
 							setEnableButtons(!isPartial)
-							const tool = JSON.parse(lastMessage.text || "{}") as PercySayTool
+							const tool = JSON.parse(lastMessage.text || "{}") as ArchimedesSayTool
 							switch (tool.tool) {
 								case "editedExistingFile":
 								case "newFileCreated":
@@ -143,28 +143,28 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 							break
 						case "browser_action_launch":
 							setTextAreaDisabled(isPartial)
-							setPercyAsk("browser_action_launch")
+							setArchimedesAsk("browser_action_launch")
 							setEnableButtons(!isPartial)
 							setPrimaryButtonText("Approve")
 							setSecondaryButtonText("Reject")
 							break
 						case "command":
 							setTextAreaDisabled(isPartial)
-							setPercyAsk("command")
+							setArchimedesAsk("command")
 							setEnableButtons(!isPartial)
 							setPrimaryButtonText("Run Command")
 							setSecondaryButtonText("Reject")
 							break
 						case "command_output":
 							setTextAreaDisabled(false)
-							setPercyAsk("command_output")
+							setArchimedesAsk("command_output")
 							setEnableButtons(true)
 							setPrimaryButtonText("Proceed While Running")
 							setSecondaryButtonText(undefined)
 							break
 						case "use_mcp_server":
 							setTextAreaDisabled(isPartial)
-							setPercyAsk("use_mcp_server")
+							setArchimedesAsk("use_mcp_server")
 							setEnableButtons(!isPartial)
 							setPrimaryButtonText("Approve")
 							setSecondaryButtonText("Reject")
@@ -172,14 +172,14 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 						case "completion_result":
 							// extension waiting for feedback. but we can just present a new task button
 							setTextAreaDisabled(isPartial)
-							setPercyAsk("completion_result")
+							setArchimedesAsk("completion_result")
 							setEnableButtons(!isPartial)
 							setPrimaryButtonText("Start New Task")
 							setSecondaryButtonText(undefined)
 							break
 						case "resume_task":
 							setTextAreaDisabled(false)
-							setPercyAsk("resume_task")
+							setArchimedesAsk("resume_task")
 							setEnableButtons(true)
 							setPrimaryButtonText("Resume Task")
 							setSecondaryButtonText(undefined)
@@ -187,7 +187,7 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 							break
 						case "resume_completed_task":
 							setTextAreaDisabled(false)
-							setPercyAsk("resume_completed_task")
+							setArchimedesAsk("resume_completed_task")
 							setEnableButtons(true)
 							setPrimaryButtonText("Start New Task")
 							setSecondaryButtonText(undefined)
@@ -204,7 +204,7 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 								setInputValue("")
 								setTextAreaDisabled(true)
 								setSelectedImages([])
-								setPercyAsk(undefined)
+								setArchimedesAsk(undefined)
 								setEnableButtons(false)
 							}
 							break
@@ -230,7 +230,7 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 			// this would get called after sending the first message, so we have to watch messages.length instead
 			// No messages, so user has to submit a task
 			// setTextAreaDisabled(false)
-			// setPercyAsk(undefined)
+			// setArchimedesAsk(undefined)
 			// setPrimaryButtonText(undefined)
 			// setSecondaryButtonText(undefined)
 		}
@@ -239,7 +239,7 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 	useEffect(() => {
 		if (messages.length === 0) {
 			setTextAreaDisabled(false)
-			setPercyAsk(undefined)
+			setArchimedesAsk(undefined)
 			setEnableButtons(false)
 			setPrimaryButtonText("Approve")
 			setSecondaryButtonText("Reject")
@@ -306,7 +306,7 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 				setInputValue("")
 				setTextAreaDisabled(true)
 				setSelectedImages([])
-				setPercyAsk(undefined)
+				setArchimedesAsk(undefined)
 				setEnableButtons(false)
 				// setPrimaryButtonText(undefined)
 				// setSecondaryButtonText(undefined)
@@ -360,7 +360,7 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 					break
 			}
 			setTextAreaDisabled(true)
-			setPercyAsk(undefined)
+			setArchimedesAsk(undefined)
 			setEnableButtons(false)
 			// setPrimaryButtonText(undefined)
 			// setSecondaryButtonText(undefined)
@@ -408,7 +408,7 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 					break
 			}
 			setTextAreaDisabled(true)
-			setPercyAsk(undefined)
+			setArchimedesAsk(undefined)
 			setEnableButtons(false)
 			// setPrimaryButtonText(undefined)
 			// setSecondaryButtonText(undefined)
@@ -519,7 +519,7 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 		})
 	}, [modifiedMessages])
 
-	const isBrowserSessionMessage = (message: PercyMessage): boolean => {
+	const isBrowserSessionMessage = (message: ArchimedesMessage): boolean => {
 		// which of visible messages are browser session messages, see above
 		if (message.type === "ask") {
 			return ["browser_action_launch"].includes(message.ask!)
@@ -533,8 +533,8 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 	}
 
 	const groupedMessages = useMemo(() => {
-		const result: (PercyMessage | PercyMessage[])[] = []
-		let currentGroup: PercyMessage[] = []
+		const result: (ArchimedesMessage | ArchimedesMessage[])[] = []
+		let currentGroup: ArchimedesMessage[] = []
 		let isInBrowserSession = false
 
 		const endBrowserSession = () => {
@@ -574,7 +574,7 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 
 					// Check if this is a close action
 					if (message.say === "browser_action") {
-						const browserAction = JSON.parse(message.text || "{}") as PercySayBrowserAction
+						const browserAction = JSON.parse(message.text || "{}") as ArchimedesSayBrowserAction
 						if (browserAction.action === "close") {
 							endBrowserSession()
 						}
@@ -717,7 +717,7 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 	}, [task])
 
 	const itemContent = useCallback(
-		(index: number, messageOrGroup: PercyMessage | PercyMessage[]) => {
+		(index: number, messageOrGroup: ArchimedesMessage | ArchimedesMessage[]) => {
 			// browser session group
 			if (Array.isArray(messageOrGroup)) {
 				return (
@@ -791,7 +791,7 @@ const ChatView = ({ isHidden, showAnnouncement, hideAnnouncement, showHistoryVie
 					<div style={{ padding: "0 20px", flexShrink: 0 }}>
 						<h2>What can I do for you?</h2>
 						<p>
-							I'm Percy. Your AI Software Assistant. You can ask me anything about your project. We can plan for the
+							I'm Archimedes. Your AI Software Assistant. You can ask me anything about your project. We can plan for the
 							development of a feature. Or fix a bug. Or integrate with other systems you use, like Jira, or Linear,
 							GitHub or Notion, through the magic of MCP integrations. Use your favourite models, local or via APIs,
 							proprietary or open weight/source.

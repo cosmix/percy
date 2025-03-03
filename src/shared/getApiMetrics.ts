@@ -1,4 +1,4 @@
-import { PercyMessage } from "./ExtensionMessage"
+import { ArchimedesMessage } from "./ExtensionMessage"
 
 interface ApiMetrics {
 	totalTokensIn: number
@@ -9,13 +9,13 @@ interface ApiMetrics {
 }
 
 /**
- * Calculates API metrics from an array of PercyMessages.
+ * Calculates API metrics from an array of ArchimedesMessages.
  *
  * This function processes 'api_req_started' messages that have been combined with their
  * corresponding 'api_req_finished' messages by the combineApiRequests function. It also takes into account 'deleted_api_reqs' messages, which are aggregated from deleted messages.
  * It extracts and sums up the tokensIn, tokensOut, cacheWrites, cacheReads, and cost from these messages.
  *
- * @param messages - An array of PercyMessage objects to process.
+ * @param messages - An array of ArchimedesMessage objects to process.
  * @returns An ApiMetrics object containing totalTokensIn, totalTokensOut, totalCacheWrites, totalCacheReads, and totalCost.
  *
  * @example
@@ -25,7 +25,7 @@ interface ApiMetrics {
  * const { totalTokensIn, totalTokensOut, totalCost } = getApiMetrics(messages);
  * // Result: { totalTokensIn: 10, totalTokensOut: 20, totalCost: 0.005 }
  */
-export function getApiMetrics(messages: PercyMessage[]): ApiMetrics {
+export function getApiMetrics(messages: ArchimedesMessage[]): ApiMetrics {
 	const result: ApiMetrics = {
 		totalTokensIn: 0,
 		totalTokensOut: 0,

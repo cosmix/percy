@@ -1,8 +1,8 @@
-# Percy Extension Architecture & Development Guide
+# Archimedes Extension Architecture & Development Guide
 
 ## Project Overview
 
-Percy is a VSCode extension that provides AI assistance through a combination of a core extension backend and a React-based webview frontend. The extension is built with TypeScript and follows a modular architecture pattern.
+Archimedes is a VSCode extension that provides AI assistance through a combination of a core extension backend and a React-based webview frontend. The extension is built with TypeScript and follows a modular architecture pattern.
 
 ## Architecture Overview
 
@@ -11,8 +11,8 @@ graph TB
     subgraph VSCode Extension Host
         subgraph Core Extension
             ExtensionEntry[Extension Entry<br/>src/extension.ts]
-            PercyProvider[PercyProvider<br/>src/core/webview/PercyProvider.ts]
-            PercyClass[Percy Class<br/>src/core/Percy.ts]
+            ArchimedesProvider[ArchimedesProvider<br/>src/core/webview/ArchimedesProvider.ts]
+            ArchimedesClass[Archimedes Class<br/>src/core/Archimedes.ts]
             GlobalState[VSCode Global State]
             SecretsStorage[VSCode Secrets Storage]
         end
@@ -30,42 +30,42 @@ graph TB
     end
 
     %% Core Extension Data Flow
-    ExtensionEntry --> PercyProvider
-    PercyProvider --> PercyClass
-    PercyClass --> GlobalState
-    PercyClass --> SecretsStorage
-    PercyClass --> TaskStorage
-    PercyClass --> CheckpointSystem
+    ExtensionEntry --> ArchimedesProvider
+    ArchimedesProvider --> ArchimedesClass
+    ArchimedesClass --> GlobalState
+    ArchimedesClass --> SecretsStorage
+    ArchimedesClass --> TaskStorage
+    ArchimedesClass --> CheckpointSystem
 
     %% Webview Data Flow
     WebviewApp --> ExtStateContext
     ExtStateContext --> ReactComponents
 
     %% Bidirectional Communication
-    PercyProvider <-->|postMessage| ExtStateContext
+    ArchimedesProvider <-->|postMessage| ExtStateContext
 
     style GlobalState fill:#f9f,stroke:#333,stroke-width:2px
     style SecretsStorage fill:#f9f,stroke:#333,stroke-width:2px
     style ExtStateContext fill:#bbf,stroke:#333,stroke-width:2px
-    style PercyProvider fill:#bfb,stroke:#333,stroke-width:2px
+    style ArchimedesProvider fill:#bfb,stroke:#333,stroke-width:2px
 ```
 
 ## Definitions 
 
-- core extension: Anything inside the src folder starting with the Percy.ts file
-- core extension state: Managed by the PercyProvider class in src/core/webview/PercyProvider.ts, which serves as the single source of truth for the extension's state. It manages multiple types of persistent storage (global state, workspace state, and secrets), handles state distribution to both the core extension and webview components, and coordinates state across multiple extension instances. This includes managing API configurations, task history, settings, and MCP configurations.
+- core extension: Anything inside the src folder starting with the Archimedes.ts file
+- core extension state: Managed by the ArchimedesProvider class in src/core/webview/ArchimedesProvider.ts, which serves as the single source of truth for the extension's state. It manages multiple types of persistent storage (global state, workspace state, and secrets), handles state distribution to both the core extension and webview components, and coordinates state across multiple extension instances. This includes managing API configurations, task history, settings, and MCP configurations.
 - webview: Anything inside the webview-ui. All the react or view's seen by the user and user interaction compone
 - webview state: Managed by ExtensionStateContext in webview-ui/src/context/ExtensionStateContext.tsx, which provides React components with access to the extension's state through a context provider pattern. It maintains local state for UI components, handles real-time updates through message events, manages partial message updates, and provides methods for state modifications. The context includes extension version, messages, task history, theme, API configurations, MCP servers, marketplace catalog, and workspace file paths. It synchronizes with the core extension through VSCode's message passing system and provides type-safe access to state through a custom hook (useExtensionState).
 
 ### Core Extension State
 
-The `PercyProvider` class manages multiple types of persistent storage:
+The `ArchimedesProvider` class manages multiple types of persistent storage:
 
 - **Global State:** Stored across all VSCode instances. Used for settings and data that should persist globally.
 - **Workspace State:** Specific to the current workspace. Used for task-specific data and settings.
 - **Secrets:** Secure storage for sensitive information like API keys.
 
-The `PercyProvider` handles the distribution of state to both the core extension and webview components. It also coordinates state across multiple extension instances, ensuring consistency.
+The `ArchimedesProvider` handles the distribution of state to both the core extension and webview components. It also coordinates state across multiple extension instances, ensuring consistency.
 
 ### Webview State
 
@@ -82,16 +82,16 @@ The `ExtensionStateContext` in `webview-ui/src/context/ExtensionStateContext.tsx
 
 It synchronizes with the core extension through VSCode's message passing system and provides type-safe access to the state via a custom hook (`useExtensionState`).
 
-## Core Extension (Percy.ts)
+## Core Extension (Archimedes.ts)
 
-The Percy class is the heart of the extension, managing task execution, state persistence, and tool coordination. Each task runs in its own instance of the Percy class, ensuring isolation and proper state management.
+The Archimedes class is the heart of the extension, managing task execution, state persistence, and tool coordination. Each task runs in its own instance of the Archimedes class, ensuring isolation and proper state management.
 
 ### Task Execution Loop
 
 The core task execution loop follows this pattern:
 
 ```typescript
-class Percy {
+class Archimedes {
   async initiateTaskLoop(userContent: UserContent, isNewTask: boolean) {
     while (!this.abort) {
       // 1. Make API request and stream response
@@ -113,7 +113,7 @@ class Percy {
       await pWaitFor(() => this.userMessageContentReady)
       
       // 4. Continue loop with tool result
-      const recDidEndLoop = await this.recursivelyMakePercyRequests(
+      const recDidEndLoop = await this.recursivelyMakeArchimedesRequests(
         this.userMessageContent
       )
     }
@@ -126,7 +126,7 @@ class Percy {
 The streaming system handles real-time updates and partial content:
 
 ```typescript
-class Percy {
+class Archimedes {
   async presentAssistantMessage() {
     // Handle streaming locks to prevent race conditions
     if (this.presentAssistantMessageLocked) {
@@ -161,7 +161,7 @@ class Percy {
 Tools follow a strict execution pattern:
 
 ```typescript
-class Percy {
+class Archimedes {
   async executeToolWithApproval(block: ToolBlock) {
     // 1. Check auto-approval settings
     if (this.shouldAutoApproveTool(block.name)) {
@@ -193,7 +193,7 @@ class Percy {
 The system includes robust error handling:
 
 ```typescript
-class Percy {
+class Archimedes {
   async handleError(action: string, error: Error) {
     // 1. Check if task was abandoned
     if (this.abandoned) return
@@ -216,16 +216,16 @@ class Percy {
 
 ### API Request & Token Management
 
-The Percy class handles API requests with built-in retry, streaming, and token management:
+The Archimedes class handles API requests with built-in retry, streaming, and token management:
 
 ```typescript
-class Percy {
+class Archimedes {
   async *attemptApiRequest(previousApiReqIndex: number): ApiStream {
     // 1. Wait for MCP servers to connect
     await pWaitFor(() => this.providerRef.deref()?.mcpHub?.isConnecting !== true)
 
     // 2. Manage context window
-    const previousRequest = this.PercyMessages[previousApiReqIndex]
+    const previousRequest = this.ArchimedesMessages[previousApiReqIndex]
     if (previousRequest?.text) {
       const { tokensIn, tokensOut } = JSON.parse(previousRequest.text)
       const totalTokens = (tokensIn || 0) + (tokensOut || 0)
@@ -301,13 +301,13 @@ Key features:
 
 ### Task State & Resumption
 
-The Percy class provides robust task state management and resumption capabilities:
+The Archimedes class provides robust task state management and resumption capabilities:
 
 ```typescript
-class Percy {
+class Archimedes {
   async resumeTaskFromHistory() {
     // 1. Load saved state
-    this.PercyMessages = await this.getSavedPercyMessages()
+    this.ArchimedesMessages = await this.getSavedArchimedesMessages()
     this.apiConversationHistory = await this.getSavedApiConversationHistory()
 
     // 2. Handle interrupted tool executions
@@ -339,7 +339,7 @@ class Percy {
   private async saveTaskState() {
     // Save conversation history
     await this.saveApiConversationHistory()
-    await this.savePercyMessages()
+    await this.saveArchimedesMessages()
     
     // Create checkpoint
     const commitHash = await this.checkpointTracker?.commit()
@@ -385,7 +385,7 @@ Key aspects of task state management:
 
 ### Core Extension Role
 
-The core extension (PercyProvider) acts as the single source of truth for all persistent state. It:
+The core extension (ArchimedesProvider) acts as the single source of truth for all persistent state. It:
 - Manages VSCode global state and secrets storage
 - Coordinates state updates between components
 - Ensures state consistency across webview reloads
@@ -394,10 +394,10 @@ The core extension (PercyProvider) acts as the single source of truth for all pe
 
 ### Terminal Management
 
-The Percy class manages terminal instances and command execution:
+The Archimedes class manages terminal instances and command execution:
 
 ```typescript
-class Percy {
+class Archimedes {
   async executeCommandTool(command: string): Promise<[boolean, ToolResponse]> {
     // 1. Get or create terminal
     const terminalInfo = await this.terminalManager.getOrCreateTerminal(cwd)
@@ -453,10 +453,10 @@ Key features:
 
 ### Browser Session Management
 
-The Percy class handles browser automation through Puppeteer:
+The Archimedes class handles browser automation through Puppeteer:
 
 ```typescript
-class Percy {
+class Archimedes {
   async executeBrowserAction(action: BrowserAction): Promise<BrowserActionResult> {
     switch (action) {
       case "launch":
@@ -495,7 +495,7 @@ Key aspects:
 
 ## Conclusion
 
-This guide provides a comprehensive overview of the Percy extension architecture, with special focus on state management, data persistence, and code organization. Following these patterns ensures robust feature implementation with proper state handling across the extension's components.
+This guide provides a comprehensive overview of the Archimedes extension architecture, with special focus on state management, data persistence, and code organization. Following these patterns ensures robust feature implementation with proper state handling across the extension's components.
 
 Remember:
 - Always persist important state in the extension
@@ -510,8 +510,8 @@ Remember:
 
 ## Contributing
 
-Contributions to the Percy extension are welcome! Please follow these guidelines:
+Contributions to the Archimedes extension are welcome! Please follow these guidelines:
 
 When adding new tools or API providers, follow the existing patterns in the `src/integrations/` and `src/api/providers/` directories, respectively. Ensure that your code is well-documented and includes appropriate error handling.
 
-The `.Percyignore` file allows users to specify files and directories that Percy should not access. When implementing new features, respect the `.Percyignore` rules and ensure that your code does not attempt to read or modify ignored files.
+The `.Archimedesignore` file allows users to specify files and directories that Archimedes should not access. When implementing new features, respect the `.Archimedesignore` rules and ensure that your code does not attempt to read or modify ignored files.

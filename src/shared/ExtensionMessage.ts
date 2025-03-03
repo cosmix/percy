@@ -41,7 +41,7 @@ export interface ExtensionMessage {
 	lmStudioModels?: string[]
 	vsCodeLmModels?: { vendor?: string; family?: string; version?: string; id?: string }[]
 	filePaths?: string[]
-	partialMessage?: PercyMessage
+	partialMessage?: ArchimedesMessage
 	openRouterModels?: Record<string, ModelInfo>
 	openAiModels?: string[]
 	mcpServers?: McpServer[]
@@ -72,7 +72,7 @@ export interface ExtensionState {
 	uriScheme?: string
 	currentTaskItem?: HistoryItem
 	checkpointTrackerErrorMessage?: string
-	percyMessages: PercyMessage[]
+	archimedesMessages: ArchimedesMessage[]
 	taskHistory: HistoryItem[]
 	shouldShowAnnouncement: boolean
 	autoApprovalSettings: AutoApprovalSettings
@@ -88,11 +88,11 @@ export interface ExtensionState {
 	reasoningBlocksExpanded?: boolean
 }
 
-export interface PercyMessage {
+export interface ArchimedesMessage {
 	ts: number
 	type: "ask" | "say"
-	ask?: PercyAsk
-	say?: PercySay
+	ask?: ArchimedesAsk
+	say?: ArchimedesSay
 	text?: string
 	reasoning?: string
 	images?: string[]
@@ -103,7 +103,7 @@ export interface PercyMessage {
 	conversationHistoryDeletedRange?: [number, number] // for when conversation history is truncated for API requests
 }
 
-export type PercyAsk =
+export type ArchimedesAsk =
 	| "followup"
 	| "plan_mode_response"
 	| "command"
@@ -118,7 +118,7 @@ export type PercyAsk =
 	| "browser_action_launch"
 	| "use_mcp_server"
 
-export type PercySay =
+export type ArchimedesSay =
 	| "task"
 	| "error"
 	| "api_req_started"
@@ -141,10 +141,10 @@ export type PercySay =
 	| "use_mcp_server"
 	| "diff_error"
 	| "deleted_api_reqs"
-	| "percyignore_error"
+	| "archimedesignore_error"
 	| "checkpoint_created"
 
-export interface PercySayTool {
+export interface ArchimedesSayTool {
 	tool:
 		| "editedExistingFile"
 		| "newFileCreated"
@@ -164,7 +164,7 @@ export interface PercySayTool {
 export const browserActions = ["launch", "click", "type", "scroll_down", "scroll_up", "close"] as const
 export type BrowserAction = (typeof browserActions)[number]
 
-export interface PercySayBrowserAction {
+export interface ArchimedesSayBrowserAction {
 	action: BrowserAction
 	coordinate?: string
 	text?: string
@@ -177,7 +177,7 @@ export type BrowserActionResult = {
 	currentMousePosition?: string
 }
 
-export interface PercyAskUseMcpServer {
+export interface ArchimedesAskUseMcpServer {
 	serverName: string
 	type: "use_mcp_tool" | "access_mcp_resource"
 	toolName?: string
@@ -185,17 +185,17 @@ export interface PercyAskUseMcpServer {
 	uri?: string
 }
 
-export interface PercyApiReqInfo {
+export interface ArchimedesApiReqInfo {
 	request?: string
 	tokensIn?: number
 	tokensOut?: number
 	cacheWrites?: number
 	cacheReads?: number
 	cost?: number
-	cancelReason?: PercyApiReqCancelReason
+	cancelReason?: ArchimedesApiReqCancelReason
 	streamingFailedMessage?: string
 }
 
-export type PercyApiReqCancelReason = "streaming_failed" | "user_cancelled"
+export type ArchimedesApiReqCancelReason = "streaming_failed" | "user_cancelled"
 
 export const COMPLETION_RESULT_CHANGES_FLAG = "HAS_CHANGES"

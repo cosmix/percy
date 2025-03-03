@@ -32,12 +32,11 @@ export class AnthropicHandler implements ApiHandler {
 		// Determine temperature value (default is 0)
 		let temperature = 0
 
-		maxTokens = Math.min(this.options.maxTokens || 8192, 64000)
+		maxTokens = Math.min(this.options.maxTokens || 8192, model.info.maxTokens || 8192)
 
 		// Get thinking budget using utility function
 		const thinkingBudget = getThinkingBudget(model.info, this.options.thinkingMode, maxTokens)
 
-		// Add thinking parameter if budget is greater than 0
 		if (isThinkingEnabled(model.info, this.options.thinkingMode) && thinkingBudget > 0) {
 			requestOptions.thinking = {
 				type: "enabled",
@@ -221,19 +220,16 @@ export class AnthropicHandler implements ApiHandler {
 							// Convert thinking_delta chunks to reasoning chunks for display in the UI
 							yield {
 								type: "reasoning",
-								reasoning: (chunk.delta as any).thinking,
+								reasoning: chunk.delta.thinking,
 							}
 							// Also yield the original thinking_delta chunk for internal use
 							yield {
 								type: "thinking_delta",
-								thinking: (chunk.delta as any).thinking,
+								thinking: chunk.delta.thinking,
 							}
 							break
 						case "signature_delta":
-							yield {
-								type: "signature_delta",
-								signature: (chunk.delta as any).signature,
-							}
+
 							break
 					}
 					break

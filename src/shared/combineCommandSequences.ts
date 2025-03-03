@@ -1,18 +1,18 @@
-import { PercyMessage } from "./ExtensionMessage"
+import { ArchimedesMessage } from "./ExtensionMessage"
 
 /**
- * Combines sequences of command and command_output messages in an array of PercyMessages.
+ * Combines sequences of command and command_output messages in an array of ArchimedesMessages.
  *
- * This function processes an array of PercyMessages objects, looking for sequences
+ * This function processes an array of ArchimedesMessages objects, looking for sequences
  * where a 'command' message is followed by one or more 'command_output' messages.
  * When such a sequence is found, it combines them into a single message, merging
  * their text contents.
  *
- * @param messages - An array of PercyMessage objects to process.
- * @returns A new array of PercyMessage objects with command sequences combined.
+ * @param messages - An array of ArchimedesMessage objects to process.
+ * @returns A new array of ArchimedesMessage objects with command sequences combined.
  *
  * @example
- * const messages: PercyMessage[] = [
+ * const messages: ArchimedesMessage[] = [
  *   { type: 'ask', ask: 'command', text: 'ls', ts: 1625097600000 },
  *   { type: 'ask', ask: 'command_output', text: 'file1.txt', ts: 1625097601000 },
  *   { type: 'ask', ask: 'command_output', text: 'file2.txt', ts: 1625097602000 }
@@ -20,8 +20,8 @@ import { PercyMessage } from "./ExtensionMessage"
  * const result = simpleCombineCommandSequences(messages);
  * // Result: [{ type: 'ask', ask: 'command', text: 'ls\nfile1.txt\nfile2.txt', ts: 1625097600000 }]
  */
-export function combineCommandSequences(messages: PercyMessage[]): PercyMessage[] {
-	const combinedCommands: PercyMessage[] = []
+export function combineCommandSequences(messages: ArchimedesMessage[]): ArchimedesMessage[] {
+	const combinedCommands: ArchimedesMessage[] = []
 
 	// First pass: combine commands with their outputs
 	for (let i = 0; i < messages.length; i++) {

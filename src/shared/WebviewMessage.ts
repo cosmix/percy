@@ -57,7 +57,7 @@ export interface WebviewMessage {
 	// | "relaunchChromeDebugMode"
 	text?: string
 	disabled?: boolean
-	askResponse?: PercyAskResponse
+	askResponse?: ArchimedesAskResponse
 	apiConfiguration?: ApiConfiguration
 	images?: string[]
 	bool?: boolean
@@ -80,6 +80,6 @@ export interface WebviewMessage {
 	url?: string
 }
 
-export type PercyAskResponse = "yesButtonClicked" | "noButtonClicked" | "messageResponse"
+export type ArchimedesAskResponse = "yesButtonClicked" | "noButtonClicked" | "messageResponse"
 
-export type PercyCheckpointRestore = "task" | "workspace" | "taskAndWorkspace"
+export type ArchimedesCheckpointRestore = "task" | "workspace" | "taskAndWorkspace"
