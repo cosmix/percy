@@ -62,6 +62,6 @@
 		"@types/react-dom": "^18.3.0",
 		"@types/vscode-webview": "^1.57.5",
 		"jsdom": "^25.0.1",
-		"vitest": "^2.1.9"
+		"vitest": "^3.0.7"
 	}
 }
